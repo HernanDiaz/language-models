@@ -1,0 +1,10 @@
+# Vídeos: se guardan solo en local, nunca en el repositorio
+video/**/*.mp4
+video/**/*.mov
+video/**/*.mkv
+video/**/*.webm
+
+# Salidas de los cuadernos al ejecutarlos en local
+salidas/
+.ipynb_checkpoints/
+__pycache__/

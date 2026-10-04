@@ -1,0 +1,1221 @@
+Aprender a estimar el precio de una vivienda
+
+Una pregunta que podemos imaginar
+
+Supongamos que queremos estimar el precio de una vivienda antes de conocer su precio anunciado. Nos dan su superficie y algunos ejemplos de otras viviendas. Una primera intuición es que, si las demás circunstancias son parecidas, una vivienda más grande puede costar más. ¿Podemos convertir esa intuición en una regla que mejore al observar ejemplos?
+
+En una situación real también importarían la ubicación, el estado, la antigüedad y muchas otras características. Aquí trabajaremos con viviendas ficticias y una relación deliberadamente sencilla. No buscamos una herramienta de tasación: queremos observar, sin demasiados elementos a la vez, cómo aprende un modelo.
+
+El recorrido del capítulo será el mismo que seguiríamos al investigar el problema: proponer una estimación, compararla con los datos, entender qué está fallando y corregir la regla. Las fórmulas aparecerán cuando necesitemos expresar con precisión una de esas operaciones. Cada una se aplicará inmediatamente a las mismas viviendas, de manera que sus símbolos mantengan un significado reconocible.
+
+Al final reuniremos todo en un programa corto de Python. No necesitará una tarjeta gráfica ni descargar un modelo. La parte importante será poder leer sus resultados y explicar por qué ha mejorado, no solo conseguir ejecutarlo.
+
+De unas viviendas a una regla sencilla
+
+Los datos con los que vamos a aprender
+
+La Tabla contiene nuestros tres ejemplos. Expresaremos los precios en miles de euros: escribir 150 significará 150 000 euros. Esta elección reduce el tamaño de los números sin cambiar lo que representan.
+
+Con estos datos se aprecia que, al añadir 50 metros cuadrados, el precio aumenta en 100 000 euros. Como autores del ejemplo conocemos esa regularidad. Sin embargo, el programa que vamos a construir no recibirá una instrucción que diga «aumenta el precio en 100 000 euros». Recibirá las parejas de superficie y precio, y un procedimiento para ajustar su regla.
+
+Esta es la primera distinción importante: los ejemplos indican qué resultados esperamos; el modelo define qué clase de regla vamos a ajustar. Elegiremos una recta porque es fácil de dibujar, de interpretar y de corregir.
+
+Qué representa cada parte de la fórmula
+
+Antes de usar letras, podemos escribir nuestra propuesta con palabras:
+
+Precio estimado = efecto de la superficie + ajuste de partida.
+
+La parte asociada a la superficie hará que el precio cambie al pasar de una vivienda pequeña a otra grande. El ajuste de partida permitirá desplazar la estimación completa hacia arriba o hacia abajo.
+
+Para que los cálculos sean manejables, contaremos la superficie en bloques de 50 metros cuadrados. Una vivienda de 50 m2 tiene un bloque; una de 100 m2, dos; y una de 150 m2, tres. No tiene que ser un número entero: 75 m2 equivalen a un bloque y medio. Llamaremos x a esa cantidad:
+
+Es solo un cambio de unidad. La vivienda sigue teniendo la misma superficie. También significa que las tasas numéricas de aprendizaje que usaremos estarán asociadas a estas unidades; cambiar la escala de entrada puede exigir ajustar la tasa.
+
+Ahora podemos escribir la regla del modelo:
+
+El símbolo y es el precio estimado, en miles de euros. El peso w indica cuántos miles de euros añade la regla por cada bloque de 50 m2. El sesgo b es un ajuste que se suma a todas las estimaciones.
+
+Si w=50 y b=50, el modelo suma 50 000 euros por bloque de superficie y otros 50 000 euros como ajuste. Para la vivienda B, que tiene dos bloques, calcula 50·2+50=150: una estimación de 150 000 euros.
+
+El sesgo no debe interpretarse automáticamente como el valor del terreno ni como el precio real de una vivienda de cero metros cuadrados. Es la ordenada de la recta, un parámetro de ajuste. Nuestro conjunto no contiene viviendas de superficie cero y no permite atribuirle esa interpretación económica.
+
+Peso y sesgo producen cambios distintos
+
+Imaginemos primero que aumentamos w de 50 a 70 y conservamos b=50. La vivienda A sube 20 000 euros, la B sube 40 000 y la C sube 60 000. El cambio es mayor cuanto mayor es la superficie.
+
+Ahora conservemos w=50 y aumentemos b de 50 a 80. Las tres estimaciones suben exactamente 30 000 euros. El sesgo no depende de cuántos bloques tenga cada vivienda. La Figura muestra esta diferencia: modificar el peso cambia la inclinación; modificar el sesgo desplaza la recta.
+
+Con esto ya podemos distinguir entradas y parámetros. La superficie es una entrada: cambia al consultar otra vivienda. El peso y el sesgo son parámetros: la misma pareja (w,b) se utiliza para todas las viviendas. Aprender consistirá en corregir esa pareja, no en inventar una regla independiente para cada fila de la tabla.
+
+Comprobar nuestra primera estimación
+
+Empezaremos con la regla que acabamos de interpretar: w=50, b=50. No es una conclusión obtenida de los datos; es el punto inicial elegido para observar las correcciones. La Tabla compara sus resultados con los precios de nuestros ejemplos.
+
+El signo negativo no indica una cantidad de dinero negativa. Indica que hemos estimado por debajo del objetivo. En la vivienda B, por ejemplo, la regla predice 150 000 euros frente a un precio ficticio de 250 000: se queda corta en 100 000 euros.
+
+Además, el error crece con la superficie. Esa observación sugiere que nuestra regla aumenta demasiado poco el precio al añadir metros cuadrados. Sin hacer todavía ninguna derivada, ya tenemos una hipótesis: aumentar el peso podría mejorar el ajuste.
+
+Una persona puede inspeccionar tres puntos y proponer una corrección. Pero un algoritmo necesita un criterio explícito para comparar reglas y un procedimiento que se pueda repetir. El siguiente paso será expresar cuán grandes son los errores de la regla completa.
+
+Resumir los errores en una sola medida
+
+Por qué no basta con sumarlos
+
+Supongamos que una regla se equivoca en +50 para una vivienda y en -50 para otra. Si sumamos ambos errores obtenemos cero, aunque ninguna predicción sea correcta. Necesitamos una medida en la que las diferencias no se cancelen por su signo.
+
+Una opción consiste en elevar cada error al cuadrado y después calcular el promedio. En nuestros tres ejemplos, los cuadrados son 2 500, 10 000 y 22 500. El promedio es:
+
+Este número se llama error cuadrático medio. En el entrenamiento lo utilizaremos como pérdida: la cantidad que queremos reducir. No es un precio, ni un porcentaje de acierto. Sus unidades son el cuadrado de miles de euros. Para comunicar un error monetario sería más natural utilizar otras medidas; aquí nos interesa su utilidad como objetivo de ajuste.
+
+La fórmula expresa la misma operación
+
+Cuando haya más ejemplos, escribir los tres términos uno por uno resultará incómodo. La notación de sumatorio permite abreviar exactamente el cálculo que acabamos de hacer:
+
+La letra L representa la pérdida. El subíndice i identifica una vivienda y n indica cuántas viviendas utilizamos. Dentro del paréntesis aparece nuestra estimación menos el precio conocido. El símbolo Σ significa que repetimos esa operación y sumamos sus resultados para todos los ejemplos.
+
+No se ha añadido un mecanismo nuevo al programa. La ecuación es una forma compacta de decir: «calcula los errores, elévalos al cuadrado y haz la media». Es útil leer las fórmulas de esta manera, volviendo a las operaciones concretas que representan.
+
+Probar una mejora a mano
+
+Probemos ahora w=60 y mantengamos b=50. Las estimaciones pasan a 110, 170 y 230 miles de euros. Los errores son -40, -80 y -120. El promedio de sus cuadrados es 7 466,67, menor que los 11 666,67 iniciales.
+
+El cambio ha mejorado el ajuste según nuestro criterio. Todavía no sabemos si ha sido demasiado pequeño o qué modificación convendría hacer después, pero ya podemos distinguir una mejora de un empeoramiento. También hemos comprobado que la intuición visual sobre el peso tenía sentido en el punto inicial.
+
+Cómo elegir el sentido de una corrección
+
+Mirar qué ocurre a ambos lados
+
+Podríamos ensayar valores de peso al azar, conservar los que mejorasen la pérdida y repetir. Para una regla con dos parámetros es posible imaginarlo, pero queremos una manera más sistemática de decidir hacia dónde movernos.
+
+Volvamos a w=50, b=50. Si probamos un peso ligeramente menor, w=49, la pérdida es 12 138. Si probamos uno ligeramente mayor, w=51, baja a 11 204,67. Esta comparación indica que, cerca del punto actual, aumentar el peso reduce la pérdida.
+
+La derivada describe esa sensibilidad local: cuánto y en qué sentido cambia la pérdida cuando modificamos un parámetro. Una pendiente negativa señala que un pequeño aumento del parámetro disminuye la pérdida. Una pendiente positiva sugiere el movimiento contrario. La palabra «local» es importante: un cambio muy grande puede llevarnos a otra zona donde la situación sea distinta.
+
+Cuando hay varios parámetros hablamos de derivada parcial. Para estudiar el efecto del peso mantenemos fijo el sesgo. No significa que ignoremos el sesgo para siempre, sino que distinguimos las dos influencias antes de decidir la actualización.
+
+La fórmula del peso, conectada con cada vivienda
+
+Llamemos ei=wxi+b-yi al error de la vivienda i. La derivada de la pérdida respecto al peso es:
+
+El símbolo ∂ se lee aquí como derivada parcial. La fórmula pide multiplicar el error de cada vivienda por su entrada, sumar las contribuciones y multiplicar por 2/n. El factor dos aparece porque hemos derivado un error elevado al cuadrado.
+
+¿Por qué interviene xi? Cambiar el peso en una unidad modifica la predicción de A en una unidad, la de B en dos y la de C en tres. Por tanto, las viviendas no responden igual a un cambio del peso. Esa dependencia con la superficie es exactamente la que refleja el factor xi.
+
+En nuestro punto inicial, las contribuciones son (-50)·1, (-100)·2 y (-150)·3. Al sumarlas obtenemos -700. Multiplicando por 2/3, el gradiente del peso es aproximadamente -466,67. El signo confirma lo que habíamos observado al probar 49 y 51: conviene aumentar ligeramente el peso.
+
+El sesgo desplaza todas las estimaciones
+
+El sesgo afecta a las tres viviendas por igual. Al aumentarlo en una unidad, cada precio estimado sube una unidad, cualquiera que sea la superficie. Su derivada no necesita multiplicar por xi:
+
+La suma de errores iniciales es -300, de modo que el gradiente del sesgo es -200. También es negativo porque todas las estimaciones están por debajo de sus objetivos.
+
+Aunque los datos se generaron con un sesgo de 50, esta primera indicación propone aumentarlo. No es una contradicción: el algoritmo evalúa la sensibilidad en la pareja actual, cuyo peso todavía es incorrecto. Aumentar el sesgo puede reducir parte del error mientras el peso se ajusta. Más adelante el sesgo podrá volver hacia 50. Los parámetros actúan juntos; el algoritmo no conoce sus valores correctos de antemano.
+
+Dar un paso sin pasarse
+
+La tasa de aprendizaje
+
+El gradiente nos orienta, pero todavía hay que decidir cuánto cambiar los parámetros. Un movimiento excesivo puede atravesar una zona buena y terminar con una pérdida mayor. La tasa de aprendizaje, representada por η, controla el tamaño del paso.
+
+Para el peso aplicamos esta regla:
+
+Restamos el gradiente para movernos en el sentido de descenso local. Si el gradiente es negativo, restarlo aumenta el parámetro. La tasa no es un precio ni una probabilidad; es un ajuste del procedimiento de entrenamiento, un hiperparámetro elegido por nosotros.
+
+Usaremos η=0,05. Con el peso inicial 50 y su gradiente -466,67, el peso nuevo será aproximadamente 50+23,33=73,33. Ya podemos interpretar la modificación: la regla pasa de añadir 50 000 a unos 73 333 euros por cada bloque de 50 m2.
+
+Aplicamos la misma idea al sesgo:
+
+Como el gradiente del sesgo era -200, obtenemos 50-0,05(-200)=60. Ambos gradientes se calculan con los parámetros antiguos y después se actualizan los dos. No debemos recalcular el segundo gradiente usando ya el peso nuevo si queremos seguir este procedimiento.
+
+Volver a mirar las viviendas
+
+Una actualización solo cobra sentido al comprobar sus efectos. Con w≈73,33 y b=60, la vivienda A se estima en 133 333 euros; la B, en 206 667; y la C, en 280 000. Las tres siguen por debajo de sus precios, pero las diferencias son menores.
+
+La pérdida desciende de 11 666,67 a aproximadamente 2 351,85. No hemos tenido que adivinar una regla perfecta: hemos aplicado una corrección calculada y comprobado que mejora el ajuste. Este ciclo de predecir, medir y corregir se repetirá durante el entrenamiento.
+
+Repetir el proceso y observar qué aprende
+
+Después de la primera actualización calculamos otra vez los errores. Como las predicciones ya han cambiado, también cambiarán las derivadas. El algoritmo no repite indefinidamente la misma corrección: vuelve a evaluar la situación en cada paso.
+
+La Tabla muestra cómo evolucionan los dos parámetros. El peso se acerca a 100, que equivale a añadir 100 000 euros por cada bloque de 50 m2. El sesgo, después de aumentar, termina acercándose de nuevo a 50.
+
+Los parámetros de la última fila están redondeados. Una pérdida tan pequeña resulta posible porque nuestros datos ficticios siguen exactamente una recta y no tienen ruido. En precios reales no deberíamos esperar ese comportamiento a partir de una única característica.
+
+La Figura permite interpretar el resultado más allá de la pérdida. El modelo ha ajustado una misma recta para las tres viviendas. Ahora puede utilizarla para calcular una estimación en una superficie distinta, aunque eso no garantice por sí solo que la estimación sea adecuada para cualquier vivienda.
+
+De dónde salen las derivadas: una mirada pausada
+
+Hasta ahora hemos interpretado las derivadas y utilizado sus fórmulas. Podemos dar un paso más y comprender cómo se construyen, sin cambiar de ejemplo. Tomemos la vivienda B, de 100 m2, con precio 250. En la regla inicial tiene x=2, predicción 150 y error -100.
+
+Para llegar a la pérdida de esta vivienda realizamos varias operaciones: multiplicar el peso por dos, sumar el sesgo, restar 250 y elevar el error al cuadrado. Podemos representarlas mediante una cadena:
+
+peso → predicción → error → error al cuadrado.
+
+Si cambiamos ligeramente el peso, ese cambio se transmite por la cadena. La regla de la cadena permite combinar las sensibilidades de cada operación para saber cómo afecta el peso a la pérdida final.
+
+En esta vivienda, la sensibilidad de la predicción al peso es dos, porque la entrada es x=2. Restar el objetivo no cambia esa sensibilidad. Por último, la derivada del cuadrado del error es dos veces el error, es decir, -200 en el punto inicial. Al combinar ambos efectos obtenemos:
+
+Este valor es la contribución de la vivienda B, antes de hacer el promedio con las otras dos. Para el sesgo, el efecto sobre la predicción es uno en lugar de dos: su contribución es -200.
+
+La retropropagación organiza este cálculo en sentido inverso: parte de la pérdida y combina las derivadas locales hasta llegar a los parámetros. Cuando un parámetro afecta a la pérdida por varios caminos, sus contribuciones se suman. En redes grandes esto permite calcular muchos gradientes sin escribir a mano una fórmula completa para cada peso.
+
+Conviene separar dos tareas: retropropagar calcula los gradientes; el optimizador decide la actualización a partir de ellos. Nuestro programa utilizará directamente las fórmulas de las derivadas para que sean fáciles de seguir. El motor de derivación automática de micrograd es una ampliación posible, no un requisito para entender este ejemplo.
+
+La misma historia escrita en Python
+
+Guardar los ejemplos y hacer una predicción
+
+Cada vivienda se representa mediante una pareja: superficie en metros cuadrados y precio en miles de euros. El código conserva las unidades que usaría una persona al introducir los datos; una función convierte la superficie a bloques de 50 m2.
+
+La llamada predecir(100, 50, 50) devuelve 150. Podemos comprobarla sin ejecutar nada: 100 m2 son dos bloques, y 50·2+50=150. El resultado está en miles de euros, por lo que representa 150 000 euros.
+
+Comparar predicciones con precios conocidos
+
+La función de pérdida recorre las viviendas y guarda sus errores. Después calcula el promedio de los cuadrados:
+
+La lista errores corresponde a la última columna de nuestra primera tabla de predicciones. Separarla del promedio ayuda a reconocer las dos operaciones. Esta función evalúa los parámetros que recibe, pero no los modifica. Presupone que hay al menos una vivienda.
+
+Acumular la contribución de cada vivienda
+
+La función de gradientes comienza con dos acumuladores a cero. Para cada vivienda calcula su error y añade su contribución a la derivada del peso y del sesgo:
+
+Las líneas dw += 2*error*x y db += 2*error son las operaciones que ya interpretamos. Al terminar, dividimos entre el número de viviendas porque usamos una pérdida media. Los dos gradientes se calculan con la misma pareja de parámetros.
+
+Corregir y volver a medir
+
+El núcleo del entrenamiento contiene estas dos líneas:
+
+Primero se calculan las indicaciones de cambio. Después se actualizan los parámetros. Python evalúa el lado derecho de la segunda línea antes de asignar los dos resultados, por lo que ambos utilizan los parámetros anteriores.
+
+Guardaremos además una historia con el número de actualizaciones, el peso, el sesgo y la pérdida. Ese registro permite construir la tabla de evolución y comprobar si el entrenamiento está mejorando. El paso cero representa el estado anterior a cualquier corrección.
+
+Código completo
+
+El archivo practica_capitulo.py reúne las piezas. Solo importa math, que pertenece a Python estándar y se utiliza para detectar valores no finitos. La comprobación evita continuar si una tasa inadecuada provoca una divergencia extrema. Las viviendas reservadas no se pasan a la función de entrenamiento.
+
+Para entrenar y consultar la vivienda reservada, ejecutamos:
+
+Para ejecutarlo, utiliza un Python existente. Abre una terminal en la carpeta del archivo y ejecuta:
+
+El cuaderno del capítulo permite realizar las mismas operaciones por partes. Ninguna de las dos opciones utiliza la gráfica ni necesita bibliotecas de aprendizaje profundo.
+
+Qué ocurre si corregimos demasiado deprisa
+
+Volvamos a una cuestión que podemos reconocer intuitivamente. Si una estimación se queda corta, corregirla hacia arriba puede ayudar. Pero si la subimos demasiado, pasará a ser excesiva. El signo del gradiente orienta un movimiento pequeño; no garantiza que cualquier tamaño de paso sea adecuado.
+
+Para comparar tasas, usaremos veinte actualizaciones, siempre los mismos datos y la misma regla inicial. Lo único que cambia será la tasa. Así podremos atribuir las diferencias a esa decisión, en lugar de mezclar varios cambios a la vez.
+
+La tercera ejecución produce valores desproporcionados. No son precios plausibles: son el resultado de un procedimiento numérico inestable. Aumentar el número de pasos manteniendo esa tasa no arregla la causa y puede empeorar el problema.
+
+No estamos descubriendo una tasa universal para aprender precios ni para entrenar redes neuronales. La elección depende del problema y de sus unidades. La lección general es cómo investigar: mantener un punto de comparación, cambiar una decisión y observar una medida acompañada de su interpretación.
+
+Una vivienda nueva y los límites del ejemplo
+
+Usar lo aprendido sin seguir entrenando
+
+Reservamos una vivienda de 75 m2, cuyo precio ficticio es 200 000 euros. No aparece entre las tres viviendas que producen los gradientes. Tras entrenar, 75 m2 se convierten en x=1,5. Con parámetros próximos a w=100, b=50, el precio estimado será aproximadamente 100·1,5+50=200, en miles de euros.
+
+Esta operación es inferencia: aplicar los parámetros aprendidos a una entrada. No calculamos gradientes ni cambiamos los parámetros para responder. La superficie de 75 m2 está dentro del intervalo de entrenamiento, entre 50 y 150 m2, por lo que el ejemplo ilustra una interpolación.
+
+Por qué una predicción correcta no lo demuestra todo
+
+Hemos comprobado un solo punto, también generado mediante la misma recta y sin ruido. El resultado demuestra que el ajuste reproduce esa relación en una entrada adicional. No demuestra que la superficie baste para valorar viviendas reales ni que el procedimiento resista cambios de barrio, antigüedad o estado de conservación.
+
+Si utilizásemos repetidamente el precio reservado para elegir la tasa o el número de pasos, ese dato participaría indirectamente en nuestras decisiones. Se convertiría en un dato de validación y necesitaríamos otros ejemplos independientes para una evaluación final. La separación depende del uso que hacemos de la información, no solo de cómo llamamos a una variable.
+
+La familia de reglas también pone límites
+
+La recta puede aprender una relación afín. No puede describir cualquier conjunto de precios. Si los datos forman una curva o existen viviendas con igual superficie y precios muy distintos, no se podrá conseguir que una misma recta pase exactamente por todos los puntos.
+
+En ese caso, insistir con más actualizaciones puede no resolver el problema. Habría que preguntarse si faltan características, si hay ruido o si necesitamos otra familia de modelos. Distinguir estas causas de una tasa mal elegida forma parte del trabajo de aprendizaje automático.
+
+Qué comparte esta historia con un modelo de lenguaje
+
+En el ejemplo hemos predicho un precio a partir de una superficie. Un modelo de lenguaje autorregresivo predice probabilidades para el siguiente token a partir de una secuencia anterior. Un token es una unidad de texto definida por el tokenizador; puede ser una parte de palabra y no equivale siempre a una palabra completa.
+
+Imagina el fragmento «La vivienda tiene una superficie de». Un modelo de lenguaje asigna probabilidades a diferentes continuaciones. Durante el entrenamiento se conoce qué token aparece después en el texto de ejemplo. Esa continuación permite medir el error de la predicción y ajustar los parámetros.
+
+El ciclo conserva las ideas que hemos estudiado: hay datos, parámetros compartidos, predicciones, una pérdida y correcciones. Sin embargo, cambian la entrada, la salida, la arquitectura y la pérdida. En una tarea de predicción de tokens se utiliza habitualmente una pérdida basada en la probabilidad del token correcto, en lugar del error cuadrático de un precio.
+
+No necesitamos desarrollar esa nueva fórmula para reconocer el paralelismo. Tampoco debemos confundirlo con una equivalencia completa: nuestra recta no contiene atención, capas Transformer ni generación de conversaciones. Es una primera experiencia con el mecanismo de ajuste que volverá a aparecer en modelos mucho mayores.
+
+Una última distinción es esencial. Reducir una pérdida significa mejorar respecto al objetivo definido. En un modelo de lenguaje, producir una continuación probable no garantiza que todas sus afirmaciones sean verdaderas. Del mismo modo, reproducir nuestros precios ficticios no convierte la recta en una herramienta de tasación.
+
+Ejercicios
+
+Resuelve primero los ejercicios de interpretación y cálculo. Después utiliza el programa para contrastar tus resultados. Las soluciones se entregan en un archivo separado para que puedas comprobarlas tras intentarlo.
+
+Explica con tus palabras qué significan el peso y el sesgo en el ejemplo. ¿Qué diferencia hay entre cambiar la superficie de una vivienda y cambiar el peso del modelo?
+
+Una vivienda tiene 125 m2. Convierte su superficie a la entrada x y calcula su precio estimado con w=50, b=50. Expresa el resultado en euros.
+
+Reconstruye los tres errores iniciales y su pérdida media. Explica por qué la pérdida no está expresada directamente en euros.
+
+Aumenta solo el peso de 50 a 60 y conserva el sesgo. Calcula las tres predicciones y comprueba si la pérdida mejora.
+
+Calcula las contribuciones de cada vivienda al gradiente del peso en el punto inicial. Haz lo mismo para el sesgo y obtén los promedios.
+
+Aplica una actualización con tasa 0,05. Interpreta el peso y el sesgo nuevos y calcula la pérdida resultante.
+
+¿Por qué el sesgo puede aumentar en el primer paso aunque los datos se hayan creado con sesgo 50?
+
+Reproduce las tres tasas con veinte actualizaciones. Explica la diferencia entre avanzar despacio y divergir.
+
+Estima el precio de la vivienda reservada de 75 m2 usando los parámetros finales. ¿Es interpolación o extrapolación? ¿Qué límites tiene esta comprobación?
+
+Explica la diferencia entre entrenamiento e inferencia utilizando el código del capítulo.
+
+Dos viviendas tienen 100 m2, pero una cuesta 200 000 euros y otra 300 000. ¿Puede este modelo acertar exactamente ambas? Razona qué información podría faltar.
+
+Describe en 100–150 palabras qué comparte este ejemplo con entrenar un modelo de lenguaje y menciona al menos tres diferencias.
+
+Reflexión
+
+¿Por qué una pérdida casi nula en los ejemplos de entrenamiento no garantiza buenas estimaciones para viviendas nuevas?
+
+¿Qué información aporta el signo del gradiente y qué decide la tasa de aprendizaje?
+
+¿En qué se parece ajustar esta recta a entrenar un modelo de lenguaje y en qué se diferencia?
+
+Conclusión
+
+Hemos partido de una pregunta concreta: cómo mejorar una regla que estima precios a partir de superficies. Primero interpretamos sus dos parámetros; después observamos los errores y elegimos una medida para compararlos. Las derivadas aparecieron cuando necesitábamos decidir hacia dónde corregir, y la tasa de aprendizaje permitió controlar cuánto nos movíamos.
+
+El programa no hace algo distinto de esos cálculos: los repite de forma consistente. Comprender qué representa cada paso permite reconocer cuándo mejora, cuándo diverge y cuándo la propia recta no puede representar los datos. Esa combinación de intuición, fórmula y comprobación será la base para avanzar hacia modelos de lenguaje.
+
+Para profundizar después de este capítulo, consulta la primera lección de Neural Networks: Zero to Hero, de Andrej Karpathy, sobre derivadas y retropropagación. Se acompaña del código de micrograd y del programa de la serie. Los datos de viviendas y los materiales del capítulo son una elaboración didáctica propia.
+
+Aprender a continuar un texto
+
+De estimar un precio a proponer una letra
+
+En el capítulo anterior observábamos una vivienda y proponíamos un precio. Después comparábamos la estimación con el precio del ejemplo. Ahora cambiaremos la pregunta: si un texto empieza por una letra, ¿qué podría venir después? Seguiremos aprendiendo a partir de ejemplos, pero la respuesta ya no será una cantidad como 250 000 euros. Será un conjunto de posibilidades con distinta probabilidad.
+
+Imagina que estás inventando nombres para personajes. Escribes una a y dudas entre continuar con n, con l o terminar ahí. Si tu lista de ejemplos contiene Ana, Anna, Alba y Alan, las dos primeras continuaciones resultan familiares. Podemos construir un programa que encuentre esas regularidades y las utilice para proponer nuevas cadenas.
+
+El programa no conocerá personajes ni entenderá qué es un nombre. Su tarea será mucho más concreta: observar letras consecutivas, contar sus apariciones y convertir los recuentos en una regla de predicción. La ventaja de empezar así es que cada decisión cabe en una tabla que podemos comprobar a mano.
+
+Trabajaremos siempre con el mismo pequeño conjunto. Primero contaremos; después interpretaremos probabilidades; finalmente generaremos y evaluaremos. Las fórmulas aparecerán cuando necesitemos precisar alguna de esas operaciones. No hace falta recordar las derivadas del capítulo anterior para empezar: en este modelo podemos aprender directamente mediante recuentos.
+
+Al terminar deberías poder explicar por qué predecir y generar son operaciones distintas, calcular la probabilidad de una continuación y comparar un modelo aprendido con otro que reparte sus probabilidades por igual. La práctica utiliza Python estándar y CPU.
+
+Una colección que cabe en una hoja
+
+Qué textos verá el modelo
+
+Nuestra colección de entrenamiento contiene cuatro cadenas escritas en minúsculas: ana, anna, alba y alan. Son ejemplos didácticos elegidos para hacer visibles los cálculos, no una muestra representativa de nombres reales. No usaremos mayúsculas, tildes ni espacios en este experimento.
+
+Separaremos desde el principio otras dos cadenas, lana y bala, para evaluar. No afirmamos que todas estas cadenas sean nombres habituales: nos interesa medir continuaciones de letras. Las dos de reserva no entrarán en los recuentos. Mantendremos fija la configuración antes de consultar su resultado.
+
+Las letras presentes en el entrenamiento son a, b, l y n. Este conjunto es nuestro vocabulario de caracteres. En este capítulo cada letra será una unidad de predicción. Una unidad así puede llamarse token; no tiene por qué ser una palabra. En el capítulo de tokenización estudiaremos otras formas de dividir el texto.
+
+También necesitamos saber cuándo empieza y termina una cadena. Usaremos ^ para el inicio y \ para el final. Son marcas de control: no forman parte del nombre que se muestra al usuario. El inicio sirve como contexto, pero nunca se genera. Las salidas posibles son las cuatro letras y el final: cinco opciones en total.
+
+Convertir un nombre en preguntas pequeñas
+
+Al escribir ana con sus marcas obtenemos ana\. Ahora podemos recorrerla por parejas:
+
+^→a a→n n→a a→\ center
+
+La primera pareja pregunta qué letra inicia la cadena. La segunda pregunta qué sigue a una a. La última pregunta si debemos terminar después de una a. Un nombre de tres letras produce cuatro preguntas porque también aprendemos a parar.
+
+Cada pareja de unidades consecutivas es un bigrama. Nuestro modelo solo consultará el carácter inmediatamente anterior. Al predecir después de an, mirará la n; al predecir después de alan, también mirará la n. La historia anterior no influirá en esa decisión.
+
+Conviene detenerse aquí: bigrama no significa que el modelo recuerde las dos últimas letras para predecir una tercera. La pareja está formada por el contexto de una letra y la salida siguiente. Si ampliáramos el contexto a dos letras, estaríamos contando grupos de tres unidades.
+
+Lo que se aprende al contar
+
+Recorremos por separado los cuatro ejemplos, incluyendo inicio y final en cada uno. No unimos el final de un nombre con el principio del siguiente. La Tabla resume todas las parejas observadas.
+
+Podemos reconstruir la fila de a sin confiar en el programa. En ana, una a va seguida de n y otra del final. En anna sucede lo mismo. En alba, encontramos a y a. En alan, encontramos a y a. Sumando: dos continuaciones con l, tres con n y tres finales.
+
+El total de esta fila es ocho, aunque solo hay cuatro nombres. Contamos apariciones de contextos, no nombres distintos. Una misma letra puede contribuir varias veces dentro de una cadena. En toda la tabla hay 19 transiciones: las 15 letras de los cuatro nombres más sus cuatro finales.
+
+En el modelo de viviendas aprendíamos dos parámetros mediante correcciones sucesivas. Aquí la información aprendida queda resumida en los recuentos y en las probabilidades que obtendremos de ellos. No todos los modelos requieren descenso de gradiente. En el siguiente capítulo volveremos a ajustar parámetros de una red, pero ya sabremos qué queremos que prediga.
+
+De contar a repartir probabilidades
+
+Una bolsa de continuaciones
+
+Imagina una bolsa con ocho papeletas correspondiente a la fila de a. Dos dicen l, tres dicen n y tres dicen «final». Si sacamos una al azar, la probabilidad de obtener n es tres entre ocho. No estamos diciendo que la letra siguiente vaya a ser necesariamente n: estamos asignándole una parte del reparto.
+
+Escribiremos esa idea así:
+
+La barra vertical se lee «dado que». Por tanto, la expresión significa «probabilidad de que salga una n, dado que el carácter anterior es una a». El valor equivale al 37,5 %.
+
+El denominador es ocho, el total de la fila, y no 19, el total de la colección. Ya sabemos que estamos después de una a; solo comparamos las continuaciones observadas en esa situación. Este detalle distingue una probabilidad condicionada de una frecuencia global.
+
+Para no escribir una regla diferente por letra, llamamos C(c,s) al número de veces que la salida s sigue al contexto c. Entonces:
+
+La suma del denominador recorre las cinco salidas posibles de una fila. Si tomamos c=a y s=n, recuperamos el cálculo de tres entre ocho. La fórmula es la misma operación que haríamos con las papeletas.
+
+Qué nos dice un reparto completo
+
+Después de una a, las probabilidades son cero para a y b, dos octavos para l, tres octavos para n y tres octavos para terminar. Todas son no negativas y suman uno. Estas dos propiedades deben cumplirse en cada fila de una tabla de probabilidades.
+
+No conviene reducir el modelo a su opción más probable. Aquí hay un empate entre n y el final. Además, l sigue siendo una continuación válida con probabilidad apreciable. El modelo produce un reparto; el procedimiento que utilicemos para elegir una salida determinará qué cadena veremos.
+
+No haberlo visto no lo hace imposible
+
+Todos los ejemplos de entrenamiento empiezan por a. Si usamos únicamente sus frecuencias, la probabilidad de empezar por l es cero. Por eso lana, que hemos reservado, recibe probabilidad cero desde su primera letra. El problema no es que la cadena carezca de letras conocidas: todas estaban en el vocabulario. El problema es una combinación no observada.
+
+En una colección tan pequeña, declarar imposibles todas las combinaciones ausentes es una decisión demasiado tajante. Una solución sencilla es añadir una papeleta imaginaria de cada salida a cada bolsa. Esto se llama suavizado aditivo. No añadimos nombres reales al entrenamiento; modificamos la forma de estimar las probabilidades.
+
+En la fila de a pasamos de ocho papeletas a trece. Las tres que decían n se convierten en cuatro, y su probabilidad pasa a ser 4/13, aproximadamente 0,308. Aparecen también una papeleta de a y otra de b. Ya ninguna salida tiene probabilidad cero.
+
+Si llamamos al número que añadimos a cada casilla y K al número de salidas, la regla general es:
+
+En nuestro experimento fijamos =1 y K=5. Es necesario añadir cinco en el denominador porque hemos añadido uno a cada una de las cinco casillas. Si solo aumentáramos el numerador, las probabilidades dejarían de sumar uno.
+
+En la fila de inicio, las probabilidades son ahora 5/9 para a y 1/9 para cada otra salida, incluido el final. El modelo puede generar una cadena vacía: sacar final como primera decisión. Es una consecuencia explícita de suavizar todas las salidas. En esta práctica la mostraremos como cadena vacía, sin ocultarla ni volver a sortear hasta conseguir algo bonito.
+
+El suavizado tiene un coste. Reduce la confianza en las transiciones muy frecuentes para repartir probabilidad entre otras. Un muy grande acercaría todas las filas al reparto uniforme. Uno igual a cero nos devuelve los recuentos originales. Aquí elegimos uno antes de evaluar; no lo ajustaremos para mejorar artificialmente el resultado de la reserva.
+
+El suavizado tampoco resuelve las letras desconocidas. Si quisiéramos evaluar rosa, no tendríamos filas ni columnas para r, o o s. El programa rechaza ese caso. Una aplicación más amplia necesitaría definir de antemano otro vocabulario o una política para unidades desconocidas.
+
+Generar consiste en repetir una decisión
+
+Un recorrido posible
+
+Empezamos en la fila de inicio y sorteamos una salida según sus probabilidades. Si sale a, la escribimos y consultamos la fila de a. Si entonces sale n, escribimos esa letra y pasamos a su fila. Repetimos hasta obtener el final.
+
+Un recorrido posible, usando la tabla suavizada, es: center Inicio 5/9 a 4/13 n 3/9 a 4/13 Final. center El texto mostrado sería ana; las marcas de control no se imprimen. Otro sorteo puede recorrer filas distintas, repetir letras o producir algo que no parezca un nombre. Haber aprendido regularidades locales no garantiza un buen resultado completo.
+
+Este procedimiento es autorregresivo: cada salida generada se utiliza para decidir la siguiente. El prefijo va creciendo, aunque nuestro modelo solo aproveche su última letra. En un modelo con más contexto, el reparto podría depender de una porción mayor del prefijo.
+
+Sortear no es elegir siempre el máximo
+
+Si siempre elegimos la opción de mayor probabilidad, usamos una regla voraz. Obtendremos poca variedad y tendremos que decidir cómo romper empates. Tampoco hay una garantía general de que una sucesión de decisiones locales máximas produzca la cadena completa más probable.
+
+En cambio, el muestreo respeta el reparto: una opción menos probable puede salir en un intento concreto. Si repitiéramos muchísimos sorteos desde la misma fila, esperaríamos proporciones próximas a sus probabilidades. Diez nombres generados son demasiado pocos para exigir esas proporciones exactas.
+
+Utilizaremos una semilla fija para poder repetir la demostración. La semilla controla el generador seudoaleatorio; no mejora el modelo ni se aprende de los datos. Cambiarla modifica los sorteos y deja intacta la tabla.
+
+También pondremos un límite de 20 decisiones por cadena. Si no aparece el final, el programa marcará el resultado como truncado. Ese corte es una medida práctica y no debe confundirse con que el modelo haya decidido terminar. Las cadenas vacías y las truncadas se mantendrán visibles en la salida.
+
+Cómo puntuar una cadena completa
+
+Seguir el camino de un texto conocido
+
+Para evaluar ana no necesitamos generar nombres hasta que salga. Recorremos directamente sus cuatro transiciones y consultamos las probabilidades que el modelo les asigna. Multiplicarlas da la probabilidad de ese camino completo:
+
+La multiplicación corresponde a nuestro modelo de bigramas: cada factor usa únicamente el carácter anterior. Un modelo general podría condicionar cada factor en todo el prefijo. Hemos incluido el final porque «escribir ana y parar» es distinto de «empezar por ana y seguir».
+
+Este valor no es un porcentaje de corrección. Es la probabilidad que el modelo asigna a una cadena concreta y a su terminación. Hay muchas otras cadenas posibles entre las que se reparte la probabilidad.
+
+De la probabilidad al coste de predicción
+
+Hasta aquí hemos contado parejas de letras, calculado probabilidades y multiplicado las probabilidades de un camino. Ninguna de esas operaciones necesita logaritmos. Los introducimos ahora para una tarea nueva: expresar la calidad de las predicciones mediante un coste que podamos sumar y promediar. Cuando lleguemos al programa completo, esta operación aparecerá en la función perdida.
+
+El logaritmo como operación inversa de una potencia.
+
+Empecemos con un número conocido: 10^2=100. La potencia pregunta qué número obtenemos al multiplicar dos veces el diez. El logaritmo plantea la operación inversa: a qué exponente debemos elevar diez para obtener cien. Por eso escribimos _10(100)=2. Del mismo modo, _10(1000)=3, porque 10^3=1000.
+
+Los exponentes también pueden ser negativos: 10^-1=0,1. Por tanto, _10(0,1)=-1. Esto nos interesa porque las probabilidades están entre cero y uno. Para valores positivos menores que uno, los logaritmos en base diez son negativos; en uno valen cero.
+
+En el programa usaremos la misma operación con otra base, un número llamado e, aproximadamente 2,718. El logaritmo en esa base se llama logaritmo natural y se escribe . Así, (p) es el exponente al que habría que elevar e para obtener p. No necesitamos calcular ese exponente a mano: Python lo calcula con math.log(p). En esta biblioteca, si no indicamos una base, el logaritmo es natural. Para 0<p<1 también es negativo, y (1)=0.
+
+Convertir un producto en una suma.
+
+La propiedad que aprovecharemos es que el logaritmo de un producto equivale a sumar los logaritmos de sus factores positivos. Podemos comprobarlo primero con potencias de diez: 1001000=100 000, y sus exponentes cumplen 2+3=5. La misma propiedad se cumple con el logaritmo natural:
+
+Aplicada al camino de ana, permite sustituir el logaritmo de sus cuatro probabilidades multiplicadas por una suma de cuatro contribuciones. No cambia la probabilidad del nombre ni el modelo; cambia la forma en que expresamos su puntuación.
+
+Además, un texto largo puede tener una probabilidad tan pequeña que el ordenador la redondee a cero al multiplicar todos sus factores. Sumar directamente los logaritmos evita formar ese producto diminuto. Esa será la operación del código: consultar cada probabilidad, calcular su logaritmo y acumularlo.
+
+Un coste pequeño para una predicción favorable.
+
+Queremos que una salida observada reciba poco coste cuando el modelo le había asignado mucha probabilidad. Como los logaritmos de las probabilidades son negativos o cero, cambiamos su signo. El coste de una transición será -(p).
+
+Por ejemplo, si el modelo asigna probabilidad p=1 a la salida observada, su coste es cero. Si le asigna p=0,5, el coste es aproximadamente 0,693; si solo le asigna p=0,1, sube a 2,303. La salida real recibe así más penalización cuanto menos probable la consideraba el modelo. No hemos elegido la letra más probable ni hecho un sorteo: estamos puntuando la letra que aparece en el texto evaluado.
+
+Podemos comprobar estos tres casos con un programa independiente muy breve:
+
+import math da acceso a la función del logaritmo. El bucle recorre las tres probabilidades; math.log(p) calcula su logaritmo natural y el signo menos obtiene el coste. round(coste, 3) redondea a tres decimales solo para mostrar el resultado. Veremos los pares (1,0;0,0), (0,5;0,693) y (0,1;2,303). En el programa completo, los valores de p procederán de la tabla aprendida.
+
+Para obtener la pérdida media sumamos los costes de las M transiciones evaluadas y dividimos entre M:
+
+Aquí p_t es la probabilidad asignada a la salida que realmente aparece en la transición t. Esta medida se llama log-verosimilitud negativa media, o NLL por sus siglas en inglés. Con logaritmos naturales la expresamos en nats por transición. También es la entropía cruzada media frente a los objetivos observados, que señalan una única salida en cada paso.
+
+Para ana, la suma de los cuatro costes es aproximadamente 4,044 y la media es 1,011. Es lo mismo que tomar el logaritmo negativo del producto anterior y dividir entre cuatro. Al evaluar varias cadenas, sumaremos todos los costes y dividiremos entre todas las transiciones, no entre el número de nombres. Así cada predicción pesa lo mismo.
+
+En el límite, cuando la probabilidad se acerca a cero, el coste crece sin límite. Para una probabilidad exactamente cero tratamos el coste como infinito; el logaritmo de cero no está definido. Esto explica numéricamente el problema que encontrábamos al intentar evaluar lana sin suavizado: la primera transición ya era imposible según el modelo. Por eso el programa comprobará primero si la probabilidad es cero y devolverá math.inf en ese caso. No llamará a math.log(0), que produciría un error en Python.
+
+Una comparación que podamos interpretar
+
+Un resultado aislado como «pérdida 1,4» nos dice poco. Necesitamos una referencia sencilla. Usaremos un modelo uniforme que asigna 1/5 a cada salida en cualquier contexto. Tiene el mismo vocabulario y las mismas marcas que nuestro modelo, pero no aprovecha los recuentos.
+
+Cada transición cuesta entonces -(1/5)= 5, aproximadamente 1,609. Su pérdida media será siempre esa, tanto en entrenamiento como en reserva, mientras evaluemos cadenas válidas con este mismo vocabulario.
+
+La reserva contiene diez transiciones: cinco de lana y cinco de bala. La pérdida menor del modelo suavizado indica que, en promedio geométrico, ha asignado más probabilidad a las salidas observadas que el reparto uniforme. No implica que gane en cada transición ni que escriba buenos nombres siempre.
+
+Este experimento no demuestra una capacidad general para el español. La colección es minúscula y está construida para explicar el mecanismo. Ni siquiera podemos atribuir una diferencia pequeña a un efecto robusto con solo dos cadenas de evaluación. La utilidad del resultado es poder comprobar de dónde sale y qué significa.
+
+La separación entre entrenamiento y evaluación sigue siendo necesaria. Si añadimos lana y bala a los recuentos, dejan de medir comportamiento ante cadenas reservadas. Si probamos muchas configuraciones y elegimos la que mejor funciona aquí, habremos utilizado la reserva como validación; para una evaluación final necesitaríamos otro conjunto intacto.
+
+Además de la puntuación, conviene leer muestras sin escoger únicamente las más bonitas. Podemos anotar cuántas están vacías, cuántas repiten ejemplos y cuántas se truncan. Que una cadena no estuviera en la lista original no demuestra comprensión: se puede obtener recombinando transiciones locales.
+
+El programa completo, explicado paso a paso
+
+Ahora reuniremos las ideas en un programa que puedas leer de principio a fin. Los bloques siguientes reproducen todo el archivo practica.py, en su orden original. Las líneas en blanco solo separan funciones. Cada bloque va acompañado de una explicación de sus instrucciones y de su relación con los cálculos del capítulo.
+
+Las herramientas y los datos
+
+La primera línea, entre tres comillas, describe el archivo. Es documentación: no entrena ni genera nada. Las tres instrucciones siguientes importan herramientas de la biblioteca estándar. Counter contará apariciones; math proporciona el logaritmo y el valor infinito; random permitirá sortear salidas. No se instala ninguna biblioteca externa.
+
+ENTRENAMIENTO y RESERVA son tuplas: colecciones ordenadas que aquí mantenemos fijas. Las mayúsculas son una convención para señalar datos de configuración; Python no impide modificarlos. Los recuentos se calcularán solo con la primera colección. La segunda se utilizará para medir la pérdida.
+
+La asignación INICIO, FIN = "", "\" da nombre a las dos marcas. A continuación construimos LETRAS desde dentro hacia fuera. "".join(ENTRENAMIENTO) une los nombres en una cadena; set elimina letras repetidas; sorted las ordena; y tuple guarda el resultado como ('a', 'b', 'l', 'n'). Ordenar hace que las columnas se recorran siempre en el mismo orden.
+
+El signo + une tuplas. (FIN,) contiene un solo elemento: la coma permite distinguir una tupla de unos simples paréntesis. Así, SALIDAS contiene las cuatro letras y el final. CONTEXTOS contiene el inicio y las cuatro letras. No hay fila de final porque al terminar dejamos de predecir, ni columna de inicio porque esa marca no se genera.
+
+Separar las parejas y acumular sus recuentos
+
+def define una función que podremos llamar más tarde. Su cuerpo se reconoce por la sangría. pares recibe un nombre, añade las marcas y devuelve un recorrido de parejas mediante zip. Para ana, las dos cadenas recorridas son ^ana\ y ana\: cadena[1:] omite el primer carácter. zip se detiene al agotarse la más corta y produce las cuatro transiciones. Devuelve un iterador, que se recorre una vez; cada llamada a pares crea uno nuevo.
+
+contar recibe una colección de nombres. La expresión entre llaves crea un diccionario: a cada contexto c le corresponde un Counter distinto, inicialmente vacío. Podemos imaginarlo como una tabla de filas, cada una con su contador de salidas. Una clave ausente en un Counter se consulta como cero.
+
+El primer for recorre los nombres. not nombre detecta una cadena vacía; any(...) detecta si alguna letra no pertenece al vocabulario. or combina ambas condiciones. Si hay un problema, raise ValueError interrumpe la operación con un mensaje, en lugar de producir recuentos engañosos.
+
+El segundo bucle separa cada pareja en anterior y siguiente. El primer índice selecciona la fila del contexto y el segundo, la salida y += 1 aumenta su valor en uno. Al terminar todos los nombres, return cuentas devuelve la tabla completa. Esa devolución queda fuera de los dos bucles: si estuviera dentro del primero, contaríamos únicamente el primer nombre.
+
+Convertir cada fila en probabilidades
+
+La función recibe la tabla de recuentos. alpha=1.0 indica el valor utilizado cuando no se proporciona otro. Podemos llamar a probabilidades(cuentas, alpha=0) para recuperar las frecuencias sin suavizar. Un valor negativo provocaría una excepción porque no corresponde al suavizado definido en el capítulo.
+
+tabla = \\ crea el diccionario de resultados. Para cada contexto, cuentas[c].values() obtiene sus recuentos y sum los suma. len(SALIDAS) vale cinco. El total es, por tanto, la suma observada más cinco veces alpha. Después de una a, con alpha=1, obtenemos 8+5=13.
+
+Si el total fuera cero no podríamos dividir. La comprobación correspondiente ofrece un error explícito. No sucede con nuestros datos, pero podría ocurrir con una fila sin observaciones y sin suavizado. Con un suavizado positivo esa fila recibiría el reparto uniforme.
+
+La expresión entre llaves vuelve a ser una construcción de diccionario. Recorre todas las salidas s, no solo las observadas. Para cada una guarda su recuento más alpha, dividido entre el total. En tabla['a']['n'] se guarda 4/13. Las casillas ausentes aportan un cero gracias a Counter, y el suavizado les asigna probabilidad positiva.
+
+return tabla se ejecuta al completar todas las filas. La función crea una tabla nueva: no modifica cuentas. Así podemos comparar distintas estimaciones a partir de los mismos datos sin sumar papeletas repetidamente por accidente.
+
+Evaluar las transiciones de un texto conocido
+
+perdida recibe una tabla de probabilidades y los nombres que queremos puntuar. Puede recibir el entrenamiento o la reserva; no cambia la tabla en ninguno de los dos casos. costes = [] crea una lista vacía donde guardaremos una contribución por transición.
+
+El bucle exterior recorre los nombres y comprueba sus letras como en contar. En esta práctica también rechazamos las cadenas de evaluación vacías: aunque el generador puede producirlas, nuestras colecciones evaluadas contienen cadenas no vacías. Es una restricción de esta función, no una imposibilidad del modelo.
+
+El bucle interior obtiene cada contexto c y salida real s. p = tabla[c][s] consulta su probabilidad. No se sortea ninguna letra: la salida que evaluamos ya viene dada por el texto. Si su probabilidad es cero, math.inf representa el coste infinito y se devuelve inmediatamente. Una sola transición imposible basta para que la pérdida del conjunto sea infinita.
+
+En los demás casos, math.log(p) calcula el logaritmo natural y el signo menos lo convierte en coste. append añade ese número al final de la lista. Por ejemplo, la primera transición de lana usa p=1/9 y añade un coste aproximado de 2,197.
+
+Si la colección no contenía nombres, la lista seguiría vacía: if not costes evita dividir por cero. La última línea suma todas las contribuciones y divide entre su número. En la reserva, len(costes) vale diez. No dividimos entre dos nombres: cada transición debe pesar lo mismo aunque las cadenas tengan longitudes diferentes.
+
+Sortear una letra y saber cuándo terminar
+
+generar recibe la tabla, un generador seudoaleatorio llamado rng y un límite de decisiones. La cadena entre tres comillas documenta sus dos resultados: el texto y un valor booleano que indica si apareció el final. True significa que sí; False, que se agotó el límite.
+
+La asignación c, letras = INICIO, [] coloca el contexto en el inicio y prepara una lista vacía. range(max_pasos) permite como máximo veinte vueltas con el valor por defecto. Usamos _ porque no necesitamos el número de la vuelta: es una variable normal cuyo nombre indica que no utilizaremos su valor.
+
+La comprensión de lista que crea pesos consulta la fila actual en el mismo orden de SALIDAS. Esa correspondencia es fundamental: cada probabilidad debe acompañar a su salida. rng.choices sortea usando esos pesos; k=1 pide una elección y [0] extrae el primer elemento de la lista devuelta.
+
+Si sale FIN, "".join(letras) une las letras acumuladas sin separador y devuelve el texto junto con True. Si ocurre en la primera vuelta, se devuelve una cadena vacía. El símbolo final no se añade a la lista.
+
+Si sale una letra, append la guarda y c = s la convierte en el siguiente contexto. Por eso la salida de un paso condiciona el siguiente. Al agotarse las vueltas, la última línea devuelve lo acumulado y False. No añade un final artificial. El límite cuenta decisiones, incluida la de terminar: si las veinte son letras, el resultado tendrá veinte letras y estará truncado.
+
+Reunir el experimento y mostrar sus resultados
+
+ejecutar coordina las funciones anteriores. Primero cuenta solo ENTRENAMIENTO y obtiene la tabla suavizada. El diccionario uniforme tiene dos niveles: para cada contexto crea una fila que asigna 1 / len(SALIDAS) a cada salida. Por tanto, todas sus casillas valen 0,2.
+
+La primera impresión identifica el orden de las columnas. El bucle siguiente muestra la lista de recuentos de cada fila en ese orden. Después se calculan tres pérdidas: la referencia uniforme en reserva, el modelo aprendido en entrenamiento y el modelo aprendido en reserva. La notación %.6f muestra seis decimales; solo redondea el texto impreso, no los cálculos internos.
+
+La tabla sin_suavizar se obtiene de las mismas cuentas con alpha=0. Al evaluarla aparece inf: inicio seguido de l o b no se había observado. Esta comparación hace visible el efecto del suavizado sin incorporar la reserva al entrenamiento.
+
+random.Random(7) crea un generador con semilla fija. Se crea una sola vez, fuera del bucle: así avanza entre muestras. Reiniciarlo dentro haría que cada muestra empezara con el mismo estado aleatorio. En las diez vueltas, la asignación separa el resultado de generar en texto y completo. La expresión condicional selecciona la etiqueta correspondiente; repr(texto) muestra comillas, de modo que una cadena vacía se ve como ».
+
+Arrancar el archivo y leer la salida
+
+Python asigna el valor "__main__" a __name__ cuando ejecutamos este archivo como programa principal. En ese caso se llama a ejecutar(). Si otro archivo lo importa para usar sus funciones, la condición no se cumple y la demostración no arranca automáticamente. Definir una función y llamarla son operaciones distintas: las definiciones anteriores preparan las operaciones; esta llamada inicia el recorrido completo.
+
+El archivo practica_capitulo.py ya contiene todo el programa. También puedes reunir los bloques en su orden original. Para ejecutarlo desde su carpeta, escribe:
+
+Verás primero las cinco filas de recuentos. Después aparecerán las pérdidas 1,609438 para el uniforme, 1,113961 en entrenamiento y 1,409950 en reserva. Sin suavizado, la reserva dará infinito. Finalmente se imprimirán diez muestras con su estado. El archivo resultados.json, junto a los originales del capítulo, recoge una ejecución de referencia.
+
+Podemos seguir el flujo completo con palabras: ejecutar llama a contar; contar usa pares; probabilidades convierte las cuentas en una tabla; perdida vuelve a usar pares para puntuar textos; y generar recorre la tabla mediante sorteos. Evaluar y generar consultan el mismo modelo, pero responden preguntas diferentes.
+
+Antes de modificarlo, comprueba que puedes localizar esas llamadas. Después cambia únicamente la semilla: deberían cambiar las muestras, pero no las pérdidas. El cuaderno reproduce el programa por bloques y permite observar por separado recuentos, probabilidades y evaluación. No necesitas GPU, archivos de datos externos ni instalar bibliotecas para ejecutar la práctica.
+
+Una sesión de trabajo de cinco horas
+
+Dedica primero una hora a reconstruir las parejas y la tabla en papel. Después emplea otra en probabilidades y suavizado, comprobando que las filas suman uno. Reserva una hora para seguir la generación y los logaritmos con calculadora o Python. Utiliza la cuarta para ejecutar y modificar la práctica, y la última para los ejercicios y la comparación con las soluciones. Es una orientación, no un tiempo obligatorio.
+
+Antes de cambiar el código, escribe qué esperas que ocurra. Cambiar la semilla debería alterar las muestras, pero no la NLL. Quitar el suavizado debería recuperar los ceros. Añadir una cadena a entrenamiento debería modificar los recuentos, y por tanto el modelo. Predecir estos efectos ayuda a distinguir datos, configuración y generación.
+
+Qué falta para llegar a un modelo de lenguaje mayor
+
+Nuestro modelo ya distribuye probabilidad entre posibles símbolos siguientes y genera una secuencia mediante decisiones sucesivas. Ese es el mecanismo que queríamos hacer visible. Sin embargo, su contexto se limita a una letra y su conocimiento consiste en una tabla muy pequeña.
+
+Después de an y de alan usa exactamente la misma fila. No puede distinguir situaciones en las que el prefijo anterior importa. Ampliar el contexto permite distinguirlas, pero también aumenta el número de combinaciones posibles y hace más escasos los recuentos para cada una.
+
+Las redes neuronales ofrecen una forma de aprender representaciones y compartir parámetros entre situaciones. En el capítulo 3 conservaremos la misma pregunta, «¿qué símbolo viene después?», y sustituiremos la tabla por un predictor neuronal. Así conectaremos las probabilidades de este capítulo con los parámetros, la pérdida y las actualizaciones del primero.
+
+Por ahora, el punto de llegada es concreto: podemos seguir un nombre de principio a fin, explicar cada probabilidad y medir cuánto favorece el modelo un texto observado. Una salida convincente por sí sola no sustituye esa comprobación.
+
+Ejercicios
+
+Escribe las cinco transiciones de alba, incluyendo inicio y final. Explica por qué hay una más que letras.
+
+Reconstruye la fila de a de la tabla sin usar el código. ¿Por qué su total no es cuatro?
+
+Calcula, sin suavizado, la probabilidad de l después de a y de a después de l. Explica por qué no tienen que coincidir.
+
+Con α=1, escribe las cinco probabilidades después de n y comprueba su suma.
+
+Calcula la probabilidad suavizada de generar una cadena vacía. ¿Debe ocultarla el programa para evaluar honestamente las muestras?
+
+Sigue el camino completo de ana: calcula su probabilidad y su NLL media, incluyendo el final.
+
+Calcula a mano la probabilidad del camino de lana. Identifica la transición que recibe probabilidad cero sin suavizado.
+
+Justifica por qué el modelo uniforme tiene pérdida media ln 5 en cualquier cadena válida. ¿Cambiaría si usáramos logaritmos en base dos?
+
+Cambia solo la semilla. Compara muestras y pérdidas, y explica qué parte del procedimiento ha cambiado.
+
+Explica por qué no podemos evaluar rosa con esta tabla. Distingue letra desconocida de pareja no observada.
+
+Compara el contexto utilizado después de an y alan. ¿Qué información necesitaría un modelo para diferenciarlos?
+
+Redacta una conclusión de cinco líneas sobre la comparación con el uniforme: menciona la reserva, el número de transiciones, la limitación de los datos y la diferencia entre puntuación y calidad de las muestras.
+
+Reflexión
+
+¿Por qué una cadena generada que no aparecía en los datos no demuestra que el modelo entienda qué es un nombre?
+
+¿Qué se gana y qué se pierde al suavizar las probabilidades?
+
+¿Por qué no basta con ampliar el contexto de la tabla para conseguir un modelo mejor?
+
+Conclusión
+
+Hemos construido un modelo de lenguaje completo a partir de una tabla de recuentos. Con él podemos generar cadenas letra a letra, puntuar un texto conocido mediante la NLL y comparar el resultado con un modelo uniforme. Su límite está en el contexto: solo mira la letra anterior, y ampliar la tabla para mirar más letras haría cada vez más escasos los recuentos.
+
+El proyecto makemore, de Andrej Karpathy, muestra modelos autorregresivos de caracteres, desde bigramas hasta arquitecturas neuronales. Es la referencia docente para la idea de generar cadenas similares a una colección. El itinerario Neural Networks: Zero to Hero sitúa ese recorrido dentro del aprendizaje de redes neuronales. La colección mínima, las explicaciones, los ejercicios y el código de este capítulo son una elaboración propia.
+
+En el siguiente capítulo conservaremos la misma pregunta, pero dejaremos que una red aprenda las probabilidades corrigiendo sus parámetros, como hacíamos con la recta del capítulo 1.
+
+Una red que aprende a contar
+
+Una pregunta para empezar
+
+En el capítulo 2 construimos un generador de nombres contando. Recorríamos ana, anna, alba y alan, anotábamos qué letra seguía a cada letra y convertíamos cada fila de recuentos en probabilidades. El resultado era una tabla pequeña que podíamos comprobar a mano.
+
+Contar funciona muy bien cuando el contexto es una sola letra. Pero en el capítulo 2 también vimos su límite: después de an y de alan la tabla consulta la misma fila, porque solo mira la n. Para distinguir esos casos habría que mirar más letras. Con tres letras de contexto y un alfabeto completo tendríamos unas veinte mil filas posibles, y la mayoría no aparecería nunca en nuestros ejemplos.
+
+Necesitaremos otra forma de obtener las probabilidades: una que aprenda ajustando números, como la recta del capítulo 1, en lugar de contar casos. Antes de lanzarnos a un modelo grande, haremos una prueba con un problema cuya respuesta ya conocemos.
+
+¿Puede una red, corrigiendo números con descenso de gradiente, descubrir por su cuenta la tabla que contamos a mano?
+
+Si la respuesta es sí, tendremos un procedimiento de confianza que podremos aplicar después a situaciones en las que contar ya no es posible. Usaremos los mismos cuatro nombres, las mismas dos cadenas de reserva, lana y bala, y la misma pérdida del capítulo 2. Lo único que cambia es cómo se obtienen las probabilidades.
+
+Puntuaciones en lugar de recuentos
+
+Una tabla de números ajustables
+
+Nuestra red será, de momento, muy sencilla: una tabla con una fila por cada contexto (inicio, a, b, l y n) y una columna por cada salida posible (a, b, l, n y final). En total, 5×5=25 números. Pero esta vez no guardan recuentos: guardan puntuaciones.
+
+Una puntuación expresa cuánto favorece la red una salida en un contexto. Puede ser cualquier número: positivo, negativo o cero. Cuanto mayor sea, más probable será esa salida. Estas puntuaciones se llaman también logits, y son los parámetros que la red aprenderá.
+
+Empezaremos con las 25 puntuaciones a cero. La red no sabe nada todavía: no favorece ninguna salida frente a otra.
+
+¿Por qué no ajustar directamente las probabilidades?
+
+Podríamos pensar en guardar probabilidades y corregirlas poco a poco. El problema es que las probabilidades tienen reglas estrictas: no pueden ser negativas y cada fila debe sumar uno. Una corrección cualquiera podría romper esas reglas, por ejemplo restando un poco a una probabilidad que ya valía cero.
+
+Las puntuaciones no tienen esas restricciones. Podemos subirlas o bajarlas libremente y, en un paso posterior, convertir cada fila en un reparto válido. Esa conversión es siempre la misma y no se aprende: la llamaremos softmax.
+
+Softmax: de puntuaciones a probabilidades
+
+Softmax trabaja en dos pasos. Primero eleva el número e≈2,718, la base del logaritmo natural que conocimos en el capítulo 2, a cada puntuación. Así todas se vuelven positivas, y una puntuación mayor da un número mayor. Después divide cada resultado entre la suma de la fila, para que el reparto sume uno.
+
+Veamos un ejemplo. Supongamos que la fila de a tuviera las puntuaciones [0; 0; 1; 2; 2] para a, b, l, n y final.
+
+Las salidas con puntuación 2 se quedan con la mayor parte del reparto. Las de puntuación 0 conservan algo de probabilidad: softmax nunca da exactamente cero, porque una exponencial siempre es positiva. Esa propiedad será importante más adelante.
+
+Con letras, si zj es la puntuación de la salida j, la probabilidad que le asigna softmax es
+
+La fórmula dice exactamente lo que hicimos en la tabla: exponencial arriba, suma de todas las exponenciales abajo.
+
+¿Qué ocurre con nuestra red recién creada, con todas las puntuaciones a cero? Cada exponencial vale e0=1, la suma de la fila vale 5 y cada salida recibe 1/5=0,2. La red empieza siendo el modelo uniforme del capítulo 2. No sabe nada, y su reparto lo refleja.
+
+La misma pérdida del capítulo 2
+
+Para medir cómo de bien predice la red usamos el coste que ya conocemos: para cada transición del entrenamiento, el logaritmo negativo de la probabilidad que la red dio a la salida que realmente apareció. Después hacemos la media sobre las 19 transiciones. Es la NLL media del capítulo 2, también llamada entropía cruzada.
+
+Al empezar, todas las probabilidades valen 0,2, así que la pérdida es -ln 0,2=ln 5≈1,609, la del modelo uniforme.
+
+¿Hasta dónde puede bajar? La tabla de recuentos sin suavizar del capítulo 2 obtiene en entrenamiento una pérdida de 0,748. Para un modelo que solo mira la letra anterior, no hay forma de hacerlo mejor con estos datos: las proporciones contadas son precisamente las que dan más probabilidad a lo observado. Por eso esa cifra será nuestro suelo. Si la red aprende bien, su pérdida debería acercarse a 0,748.
+
+Cómo corregir una puntuación
+
+La regla de la salida observada
+
+En el capítulo 1 necesitábamos la derivada de la pérdida para saber hacia dónde mover el peso y el sesgo. Aquí ocurre lo mismo con cada puntuación. Afortunadamente, para el coste de softmax la derivada tiene una forma muy sencilla. Para una transición concreta, la corrección de cada puntuación de la fila es:
+
+Como en el capítulo 1, restaremos la corrección multiplicada por la tasa de aprendizaje. Leída con palabras, la regla dice:
+
+La salida que apareció recibe p-1, un número negativo. Al restarlo, su puntuación sube.
+
+Las demás salidas reciben su probabilidad p, un número positivo. Al restarlo, sus puntuaciones bajan, más cuanto más probabilidad se llevaban.
+
+Tomemos la primera transición de ana después de la a: la salida observada es n. Con la red recién creada, todas las probabilidades valen 0,2. Las correcciones son [0,2; 0,2; 0,2; -0,8; 0,2]. La n recibe el empujón hacia arriba y el resto, uno pequeño hacia abajo.
+
+Fíjate en lo que ocurre si la red ya acertaba bastante. Si hubiera dado 0,9 a la n, su corrección sería solo 0,9-1=-0,1. La red aprende más de lo que le sorprende y poco de lo que ya predecía bien.
+
+Comprobarlo sin fórmulas
+
+No hace falta creer la regla a ciegas. En el capítulo 1 comprobamos la dirección de una derivada probando un peso un poco mayor. Hagamos lo mismo. Con todas las puntuaciones a cero, el coste de la transición a→n es ln 5≈1,60944. Si subimos solo la puntuación de n a 0,01, el coste baja a 1,60145. La diferencia, -0,00799, es casi exactamente -0,8×0,01: la corrección -0,8 predice bien cuánto cambia el coste.
+
+Sumar todas las transiciones de una fila
+
+En el entrenamiento no corregimos con una sola transición, sino con la media de las 19. Las únicas transiciones que afectan a la fila de a son las que tienen a como contexto. En el capítulo 2 vimos que son ocho: tres van seguidas de n, dos de l y tres del final.
+
+Cada una de esas ocho aporta 0,2 a todas las salidas y resta 1 en la suya. Sumando:
+
+Dividiendo entre las 19 transiciones obtenemos [0,084; 0,084; -0,021; -0,074; -0,074].
+
+Usaremos una tasa de aprendizaje de 5. Es mucho mayor que la del capítulo 1, pero ya vimos allí que la tasa adecuada depende del problema: aquí las correcciones son pequeñas porque se dividen entre 19. Tras el primer paso, la fila de a pasa a tener las puntuaciones [-0,42; -0,42; 0,11; 0,37; 0,37], y sus probabilidades, redondeadas, son [0,12; 0,12; 0,21; 0,27; 0,27]. Después de un solo paso, n y final ya destacan, l sube un poco y a y b pierden terreno. Es la misma dirección que marcaban los recuentos.
+
+¿Cuándo deja de corregir?
+
+La tabla anterior esconde una idea importante. La corrección total de una fila se calcula siempre igual:
+
+(veces que aparece el contexto × probabilidad predicha) - (veces que se observó cada salida).
+
+La corrección se anula exactamente cuando las dos partes coinciden, es decir, cuando la probabilidad predicha para cada salida es igual a la proporción con que la observamos. En la fila de a: 8× pn=3, o sea, pn=3/8.
+
+El descenso de gradiente solo se detiene cuando la red predice las mismas proporciones que contamos en el capítulo 2. No le hemos dicho a la red que cuente. Solo le hemos pedido que reduzca la pérdida, y la manera de reducirla es reproducir los recuentos.
+
+Entrenar y comparar con la tabla
+
+Repetimos la corrección 1000 veces, siempre con las 19 transiciones de entrenamiento. La Tabla muestra cómo baja la pérdida.
+
+La pérdida cae deprisa al principio y después se acerca muy despacio al suelo de 0,7475. La Figura compara las probabilidades aprendidas con las que contamos en el capítulo 2: son prácticamente iguales.
+
+Hay un detalle que no se ve con tres decimales. Donde la tabla contada tiene un cero, la red tiene un número diminuto: después del inicio, por ejemplo, la probabilidad de l es 0,00019. Softmax nunca llega a cero, así que la red sigue bajando esas puntuaciones en cada paso sin alcanzar nunca el final. Por eso la pérdida se acerca al suelo sin tocarlo.
+
+Una red demasiado segura
+
+Lo que pasa con la reserva
+
+Recordemos lo que ocurría en el capítulo 2 con la reserva. La tabla sin suavizar daba probabilidad cero a empezar por l o por b, y por eso lana y bala recibían un coste infinito. La red sin freno nunca llega a cero, pero se acerca mucho. Cuantos más pasos damos, más segura está de que todo nombre empieza por a y mayor es el coste de la reserva.
+
+La Figura lo muestra con claridad. Sin freno, la pérdida de reserva baja hasta 1,475 en el segundo paso y luego sube: 1,902 a los 100 pasos y 2,355 a los 1000. Más entrenamiento no siempre es mejor. La red mejora en lo que ha visto y empeora en lo que no ha visto. Volveremos a encontrar este fenómeno en el capítulo 4.
+
+Un freno para las puntuaciones
+
+En el capítulo 2 la solución fue el suavizado: añadir una papeleta imaginaria de cada salida para que ninguna probabilidad fuera cero. Con la red podemos hacer algo parecido. En cada paso, antes de aplicar la corrección, acercamos un poco cada puntuación a cero:
+
+Aquí η es la tasa de aprendizaje y λ el freno. Con η=5 y λ=0,05, cada paso conserva el 75 % de cada puntuación antes de corregirla. Si una puntuación vale 2 y su corrección es cero, pasa a valer 1,5.
+
+¿Por qué ayuda? Porque las puntuaciones cercanas a cero dan repartos cercanos al uniforme. El freno impide que la red se vuelva extremadamente segura: una puntuación solo se mantiene alta si las correcciones la empujan una y otra vez. Es la misma idea del suavizado, que también acercaba las filas al reparto uniforme. En el lenguaje del aprendizaje automático, este freno es una forma de regularización, y se conoce como decaimiento de pesos.
+
+Con este freno, la fila de a aprendida por la red queda así:
+
+Son muy parecidas, aunque no idénticas: el freno y el suavizado se parecen en el efecto, pero no son la misma operación. Un freno mayor acercaría más la red al uniforme y uno menor la dejaría más segura. Elegir bien su valor es una decisión que, como vimos en el capítulo 1, necesita datos de validación.
+
+Todos los resultados juntos
+
+La Tabla resume el capítulo. La red sin freno se comporta como la tabla sin suavizar: casi la misma pérdida de entrenamiento y un mal resultado en la reserva. La red con freno se comporta como la tabla suavizada: peor que la red sin freno en entrenamiento, pero mucho mejor en la reserva. Recuerda que la reserva solo tiene diez transiciones: sirve para entender el mecanismo, no para medir una capacidad general.
+
+Qué hemos ganado
+
+Si la red acaba aprendiendo la misma tabla que contábamos, ¿para qué la queremos? Esta es la pregunta clave del capítulo.
+
+Contar solo funciona cuando podemos enumerar todos los contextos y tenemos ejemplos suficientes de cada uno. El procedimiento de este capítulo no depende de eso. Solo necesita tres piezas: unas puntuaciones, softmax para convertirlas en probabilidades y la pérdida para corregirlas. En este capítulo las puntuaciones estaban guardadas en una tabla. En el capítulo 4 las calculará una red a partir de las tres últimas letras, combinando representaciones aprendidas de cada una. La salida, la pérdida y la regla de corrección de las puntuaciones serán exactamente las mismas.
+
+Por eso merecía la pena empezar aquí: con una respuesta conocida, hemos podido comprobar que el procedimiento funciona antes de aplicarlo donde no podremos comprobarlo a mano.
+
+Como la red con freno ha aprendido casi la misma tabla que el suavizado del capítulo 2, sus muestras se parecen mucho. Con la misma semilla, el programa genera estos diez nombres:
+
+ablanbananabbnall, an, a, abalnannblaallbanba, banl, la, annanannl, a, anbn, ana.
+
+El primero coincide letra por letra con el primero del capítulo 2. Mirando solo la última letra no se puede hacer mucho más; para mejorar las muestras hace falta más contexto, y eso es lo que haremos en el capítulo 4.
+
+Para no confundirse
+
+Puntuación no es probabilidad. La red ajusta puntuaciones; softmax las convierte en probabilidades.
+
+Corrección no es actualización. La corrección indica hacia dónde mover cada puntuación; la tasa decide cuánto.
+
+Esta red no es mejor que la tabla. Aprende la misma tabla. Su valor está en el procedimiento, que servirá cuando contar no sea posible.
+
+Freno y suavizado se parecen, pero no son lo mismo. Los dos evitan una confianza excesiva; sus resultados son cercanos, no idénticos.
+
+Una muestra parecida a un nombre no demuestra comprensión. La red combina transiciones de una letra a la siguiente, igual que la tabla.
+
+El programa, bloque a bloque
+
+El programa completo está en practica_capitulo.py. Como en los capítulos 1 y 2, solo usa la biblioteca estándar de Python y funciona en cualquier ordenador, sin tarjeta gráfica. Lo recorremos en cinco bloques.
+
+Los datos
+
+Los nombres, la reserva y las marcas de inicio y final son los del capítulo 2. Las dos tuplas CONTEXTOS y SALIDAS fijan el orden de las filas y las columnas de la tabla de puntuaciones. La última constante reúne las decisiones del experimento: 1000 pasos, tasa 5 y freno 0,05.
+
+La función transiciones convierte los nombres en la lista de parejas (contexto, salida). Para ana produce ^→a, a→n, n→a y a→final. Con los cuatro nombres obtenemos las 19 transiciones de entrenamiento; con la reserva, otras diez.
+
+De puntuaciones a pérdida
+
+softmax hace los dos pasos de la Tabla: calcula las exponenciales y las divide entre su suma. probabilidades aplica softmax a cada fila y devuelve una tabla de probabilidades, con el mismo formato que la del capítulo 2.
+
+perdida recibe una tabla de probabilidades y una lista de transiciones. Para cada transición busca la probabilidad de la salida observada y acumula su coste -ln p. Si alguna probabilidad es cero, el coste es infinito, como ocurría en el capítulo 2 con la tabla sin suavizar. Al recibir probabilidades, la misma función sirve para evaluar la red y para evaluar las tablas contadas.
+
+Aprender
+
+correcciones aplica la regla de la salida observada. Empieza con una tabla de ceros y, para cada transición, suma pj a todas las salidas de su fila y resta 1 en la observada. Divide entre el número de transiciones porque la pérdida es una media. Es exactamente la cuenta que hicimos a mano para la fila de a.
+
+paso realiza una actualización: calcula las correcciones con las puntuaciones actuales y después aplica a cada puntuación la fórmula del freno. Con freno=0, el factor 1 - tasa * freno vale uno y queda el descenso de gradiente del capítulo 1.
+
+entrenar crea la tabla de puntuaciones a cero, es decir, el modelo uniforme. Después repite paso y guarda la pérdida de entrenamiento en los pasos 1, 10, 100 y 1000. La reserva no interviene en el entrenamiento.
+
+Comparar y generar
+
+por_recuento reconstruye las tablas del capítulo 2 a partir de las mismas transiciones: con alpha=0, las proporciones contadas; con alpha=1, el suavizado. Las usamos como referencia.
+
+generar funciona igual que en el capítulo 2. Parte del inicio, sortea una salida con las probabilidades de la fila actual y repite hasta que sale el final o se alcanzan veinte decisiones. Recibe una tabla de probabilidades, así que le da igual que procedan de contar o de entrenar.
+
+El experimento completo
+
+ejecutar entrena dos redes, una sin freno y otra con freno, y reúne cinco modelos en un diccionario: el uniforme, las dos tablas contadas y las dos redes. Para cada uno imprime la pérdida de entrenamiento y la de reserva, que son los números de la Tabla. Después muestra la fila de a de cuatro modelos y genera diez nombres con la red con freno, usando la semilla 7.
+
+Para ejecutarlo, abre una terminal en la carpeta del archivo y escribe:
+
+El programa tarda menos de un segundo. El cuaderno del capítulo contiene el mismo código dividido en celdas, para ejecutarlo por partes y hacer pruebas: cambiar la tasa, el número de pasos o el freno y observar qué ocurre.
+
+Ejercicios
+
+Con una fila de puntuaciones [0; 0; 0; 0; 0], calcula las cinco probabilidades. ¿A qué modelo del capítulo 2 corresponde?
+
+Calcula softmax de [0; 0; 1; 2; 2] sin mirar la Tabla. Comprueba que las probabilidades suman uno.
+
+Suma 3 a todas las puntuaciones del ejercicio anterior y vuelve a calcular softmax. ¿Qué observas? Intenta explicar por qué ocurre.
+
+Con todas las puntuaciones a cero, escribe las cinco correcciones de la transición a→n. ¿Cuál es negativa y qué le pasará a su puntuación?
+
+Repite el ejercicio anterior si la red ya daba 0,9 a n y 0,025 a cada una de las otras salidas. ¿Qué cambia?
+
+Reconstruye la corrección total de la fila de a en el primer paso, antes y después de dividir entre 19.
+
+Comprueba con la fila de n que la corrección se anula cuando las probabilidades coinciden con las proporciones contadas.
+
+¿Por qué la red sin freno nunca da probabilidad exactamente cero a empezar por l? ¿Qué consecuencia tiene para lana?
+
+Con tasa 5 y freno 0,05, ¿qué valor tendrá tras un paso una puntuación de 2 cuya corrección sea cero? ¿Y tras muchos pasos, si la corrección siguiera siendo cero?
+
+Ejecuta el programa con un freno de 0,01 y de 0,1. Describe qué ocurre con la fila de a y con la pérdida de entrenamiento. No uses la reserva para decidir cuál es mejor.
+
+Compara la red con freno y la tabla suavizada en la Tabla. ¿En qué se parecen? ¿Son el mismo modelo?
+
+En el capítulo 4 la red mirará tres letras. ¿Qué piezas de este capítulo se conservarán y cuál cambiará?
+
+Dedicación orientativa: unas cuatro horas. Una buena forma de repartirlas es hacer primero a mano softmax y la primera corrección, después ejecutar el programa y, por último, resolver los ejercicios y experimentar con el freno en el cuaderno.
+
+Reflexión
+
+Si la red acaba aprendiendo la misma tabla que contamos, ¿qué ventaja tiene aprender en lugar de contar?
+
+¿Por qué entrenar durante más pasos puede empeorar el resultado en datos que el modelo no ha visto?
+
+¿En qué se parecen el suavizado y el freno? ¿Cuál de los dos te parece más fácil de aplicar a una red grande?
+
+Conclusión
+
+Hemos comprobado que una red que solo ajusta puntuaciones, sin que nadie le pida contar, termina reproduciendo la tabla de recuentos del capítulo 2: el descenso de gradiente se detiene justo cuando las probabilidades coinciden con las proporciones observadas. Por el camino han aparecido las piezas que usaremos en el resto del libro: puntuaciones, softmax, la entropía cruzada como pérdida, la regla de corrección de la salida observada y un freno que evita una confianza excesiva.
+
+La idea de entrenar un bigrama con descenso de gradiente y comprobar que recupera los recuentos procede de la primera lección de makemore, de Andrej Karpathy, dentro del itinerario Neural Networks: Zero to Hero. Allí se plantea con PyTorch; aquí se ha reescrito con Python estándar para que cada corrección pueda seguirse a mano. La colección de nombres, las explicaciones, los ejercicios y el código son una elaboración propia.
+
+En el capítulo 4 conservaremos todo lo que hemos construido aquí, pero las puntuaciones dejarán de estar guardadas en una tabla: las calculará una red neuronal a partir de las tres últimas letras.
+
+Construir una red para continuar un nombre
+
+La tarea que vamos a resolver
+
+Imagina que queremos escribir un nombre y solo hemos escrito una a. Podemos continuar con n, como en Ana, o con l, como en Alba. Queremos que un programa nos proponga continuaciones, utilizando los nombres que le hemos enseñado.
+
+En el capítulo 2 ya resolvimos una primera versión de este problema. Contábamos qué letra seguía a cada letra y guardábamos los resultados en una tabla. En el capítulo 3 conseguimos que una red aprendiera esa misma tabla por su cuenta, corrigiendo puntuaciones con descenso de gradiente. En los dos casos, después de una a consultábamos siempre la misma fila: el programa no miraba lo que había antes.
+
+Esa limitación se nota si comparamos an y alan. Ambos prefijos acaban en n, pero no estamos en la misma situación: después de an aún puede venir otra letra; después de alan, en nuestra colección, el nombre termina. Si solo miramos la última letra, no podemos distinguir esos dos casos.
+
+Ahora construiremos un programa que mire las tres últimas posiciones. Una tabla con una fila por cada combinación de tres símbolos crecería muy deprisa y casi todas sus filas quedarían vacías. Por eso las puntuaciones ya no estarán guardadas en una tabla: las calcularemos mediante operaciones con números que el programa podrá ajustar al aprender. Ese conjunto de operaciones será nuestra red neuronal.
+
+Vamos a seguir una sola predicción antes de hablar de muchas a la vez. Elegimos el nombre ana y nos detenemos justo después de su primera a. El programa recibe lo que ya está escrito; el ejemplo de entrenamiento nos dice que la siguiente letra es n. Seguiremos esa letra desde la entrada hasta la pérdida.
+
+El recorrido será: representar lo escrito con números, combinar esos números, asignar probabilidades a las continuaciones y comprobar cuánto favorecemos la letra esperada. Solo después explicaremos cómo se corrigen los parámetros y cómo se repite la operación con toda la colección.
+
+Los conceptos del índice aparecerán dentro de ese recorrido. No necesitas conocer de antemano qué es un embedding, un tensor o una MLP. Iremos dando nombre a cada herramienta cuando sepamos para qué la necesitamos.
+
+Separar lo que el modelo ve de lo que debe predecir
+
+Tres casillas para recordar lo escrito
+
+Nuestro programa tendrá tres casillas de memoria. Guardarán las tres últimas posiciones del texto disponible. Cuando solo hemos escrito una a, aún faltan dos letras anteriores. Rellenaremos esas casillas con una marca de inicio, que escribiremos como ^. No es una letra del nombre: significa que todavía no había texto en esa posición.
+
+La entrada que estamos estudiando es, por tanto:
+
+Inicio letra esperada es n.
+
+Llamaremos contexto a esas tres casillas y objetivo a la letra esperada. El contexto es lo que recibe la red; el objetivo se utiliza para corregirla después de que haya respondido. La n esperada no debe aparecer dentro de la entrada de este paso, porque entonces le estaríamos dando la respuesta.
+
+Al avanzar una posición, retiramos la casilla de la izquierda y añadimos a la derecha la nueva letra. Si incorporamos la n de ana, el contexto pasa de inicio, inicio, a a inicio, a, n. Ahora la letra esperada será la última a.
+
+Un nombre produce varias preguntas
+
+Podemos recorrer ana entera de esta manera. La Tabla muestra las cuatro preguntas que utilizaremos para aprender de ese nombre.
+
+También aprendemos a terminar. Para ello añadimos una salida especial, que significa final. No escribiremos ese símbolo en el nombre mostrado al usuario. Un nombre de tres letras produce cuatro preguntas: tres sobre letras y una sobre la terminación.
+
+Repetimos el procedimiento por separado para ana, anna, alba y alan. Esos cuatro nombres forman el conjunto de entrenamiento: sus 19 preguntas se utilizan para corregir los parámetros.
+
+Las cadenas lana y bala forman el conjunto de validación. Sus diez preguntas sirven para comprobar cómo responde el modelo a casos que no ha usado para aprender. En esta práctica consultamos su pérdida al terminar los 400 pasos y no la utilizamos para elegir otra configuración. No hay un tercer conjunto independiente de prueba.
+
+De momento seguimos con una sola pregunta: inicio, inicio, a; objetivo n. Conviene mantenerla a la vista: los números de las próximas secciones representan siempre esa misma situación.
+
+Numerar las letras para poder buscarlas
+
+Antes de preparar una entrada, enumeramos los símbolos que pueden aparecer en ella. Esa lista es el vocabulario de entrada: la marca de inicio y las letras a, b, l y n. No es un nombre ni una secuencia que vayamos a dar a la red. Podemos imaginarla como el índice de un archivo de fichas. Numeramos sus símbolos para poder buscarlos:
+
+center
+
+center
+
+Nuestro contexto se escribe ahora como [0,0,1]. No hemos hecho una predicción ni hemos calculado cuánto vale una letra. Solo hemos sustituido sus nombres por números de ficha. El 1 nos permite encontrar la ficha de a; no significa que a tenga un valor de una unidad.
+
+Las respuestas tienen su propia lista: a, b, l, n y final. Sus números son 0, 1, 2, 3 y 4, en ese orden. Hay dos listas porque inicio puede aparecer en el contexto, pero no se genera; final puede generarse, pero no necesitamos volver a usarlo como contexto.
+
+center
+
+center
+
+Por eso nuestro ejemplo queda guardado como entrada [0,0,1], objetivo 3. El objetivo 3 quiere decir «la cuarta salida de la lista», que es n. No hay una relación aritmética entre esos números: no esperamos que la red sume 0+0+1 para obtener 3.
+
+En el código llamaremos A y A a los diccionarios que realizan estas conversiones. Si dos identificadores te parecen contradictorios, comprueba primero a qué lista pertenecen. Una a es la ficha de entrada 1 y la salida 0.
+
+Dar a cada letra una ficha con números ajustables
+
+Del número de ficha a su contenido
+
+El identificador nos permite buscar una letra, pero todavía no nos da una representación que la red pueda ajustar. Añadiremos a cada ficha dos números decimales. Esos números sí podrán cambiar durante el aprendizaje.
+
+Para hacer las cuentas legibles, usaremos durante esta explicación unos valores elegidos a mano. La ficha de inicio contendrá [0,1,-0,2] y la de a, [0,7,0,3]. Son valores ilustrativos: no son los valores iniciales ni finales de la ejecución del programa. Más adelante, la práctica inicializará y aprenderá sus propios valores.
+
+Buscar las fichas del contexto [0,0,1] produce:
+
+center
+
+center
+
+La pareja de números de una letra se llama embedding. Un embedding es aquí una representación aprendida, guardada en una fila. No hace falta atribuir significado humano a cada componente: no estamos diciendo que el primer número mida algo como «sonoridad» y el segundo «longitud».
+
+Hay cinco símbolos de entrada y cada uno tiene dos números. La tabla completa contiene diez valores ajustables. La misma ficha se consulta siempre que aparece la misma letra. En nuestro ejemplo buscamos dos veces la ficha de inicio; ambas posiciones reciben los mismos valores.
+
+Lo que aprende el programa es el contenido de las fichas, no sus números de identificación. La a seguirá siendo la entrada 1 aunque su pareja de valores cambie. Esta diferencia entre identificador fijo y representación ajustable es la idea principal de esta sección.
+
+Unir las tres fichas sin perder el orden
+
+La operación siguiente lee los números de la primera ficha, después los de la segunda y finalmente los de la tercera. Obtenemos una lista de seis componentes:
+
+Llamamos x a esta lista para poder referirnos a ella en las cuentas. La operación se llama aplanado: tres parejas pasan a ser una lista. No sumamos ni promediamos los números.
+
+El orden importa. Las dos primeras componentes corresponden a la posición más antigua y las dos últimas a la más reciente. Aunque una letra tenga la misma ficha en todas las posiciones, la capa siguiente podrá dar distinta importancia a cada lugar de la lista.
+
+Hasta aquí hemos consultado las fichas y reorganizado sus números: de tres símbolos a tres fichas, y de esas fichas a seis números. Todavía no hemos decidido qué letra vendrá después.
+
+Combinar los seis números para obtener una respuesta
+
+Una unidad hace una suma ponderada
+
+En el capítulo de las viviendas multiplicábamos la superficie por un peso y sumábamos un sesgo. Ahora tenemos seis entradas en lugar de una. Una unidad de la red asigna un peso a cada componente, suma los seis productos y añade su sesgo.
+
+Para seguir una cuenta concreta, elegimos los pesos [2,0,0,0,0,0] y un sesgo de 0,1. Con la lista de la sección anterior, esta unidad calcula:
+
+El resultado se llama u. Los pesos cero hacen que esta unidad ilustrativa ignore cinco componentes. No es una recomendación de inicialización: los escogemos así para poder revisar el cálculo de un vistazo. En el entrenamiento real, esos pesos se inicializan de otra manera y se ajustan.
+
+Nuestra red tendrá ocho unidades de este tipo. Todas reciben la misma lista de seis números, pero cada una dispone de sus propios seis pesos y su propio sesgo. Por eso pueden producir respuestas diferentes al mismo contexto. Al conjunto de unidades que trabajan en este paso lo llamamos capa.
+
+Una curva transforma la respuesta de cada unidad
+
+Después de cada suma aplicaremos una función llamada tanh, o tangente hiperbólica. Primero nos interesa lo que hace: recibe un número y lo transforma en otro entre -1 y 1. En nuestro caso convierte 0,3 en aproximadamente 0,2913.
+
+Llamamos activación al resultado de esta transformación. Si la entrada es cero, tanh devuelve cero; si es muy positiva, se acerca a uno; si es muy negativa, se acerca a menos uno. No es necesario desarrollar su fórmula para utilizarla: el gráfico y este cálculo muestran su efecto.
+
+Introducimos la curva porque queremos algo más flexible que encadenar sumas ponderadas. Dos capas formadas solo por sumas y sesgos podrían reunirse en una sola transformación de ese tipo sobre los seis números. La curva intermedia hace que esa simplificación ya no sea posible en general.
+
+Para continuar nuestro ejemplo manual, hacemos que la primera unidad produzca la activación 0,2913 y que las otras siete produzcan cero. Esto se consigue dando pesos y sesgos cero a esas otras unidades. La capa intermedia entrega entonces [0,2913,0,0,0,0,0,0,0].
+
+Una puntuación por salida posible
+
+La última capa recibe esas ocho activaciones y calcula cinco puntuaciones: una para a, una para b, una para l, una para n y una para el final. Cada puntuación es otra suma ponderada con su sesgo.
+
+Completamos el ejemplo eligiendo un peso de 2 entre la primera activación y la puntuación de n. Todos los demás pesos y sesgos de esta última capa serán cero. Así, la puntuación de n es 20,29130,5826, y las otras cuatro puntuaciones son cero.
+
+Estas puntuaciones son los logits que conocimos en el capítulo 3: todavía no son probabilidades, pueden ser negativas y no tienen que sumar uno. La diferencia es que antes los leíamos directamente de una tabla y ahora los calcula la red.
+
+Ya hemos recorrido una red completa con números elegidos para explicar la cuenta. Esta organización, con una capa intermedia y otra de salida, es una MLP, abreviatura de perceptrón multicapa. En la práctica real conservaremos esta organización, pero aprenderemos sus pesos en lugar de fijarlos a mano.
+
+Convertir las puntuaciones en probabilidades
+
+Necesitamos un reparto entre las cinco salidas. Como en el capítulo 3, utilizaremos softmax. Repetimos sus dos pasos con los números de nuestro ejemplo.
+
+Primero elevamos el número e a cada puntuación. Recordemos que e2,718 es la base del logaritmo natural presentado en el capítulo 2. e^0=1 y e^0,5826 vale aproximadamente 1,7907. De esta manera obtenemos valores positivos para las cinco salidas.
+
+Después sumamos esos valores y dividimos cada uno por el total. La tabla permite seguir ambas operaciones sin abreviar las cuentas:
+
+El total de las exponenciales es aproximadamente 5,7907. Por eso n recibe 1,7907/5,79070,3092: un 30,92 % de probabilidad. Cada otra salida recibe 1/5,79070,1727. Con los valores sin redondear, el reparto suma exactamente uno.
+
+n es la opción más probable de este ejemplo, pero no es segura. El modelo conserva probabilidad para las otras cuatro. En entrenamiento puntuaremos cuánto favorece la letra real; al generar podremos seleccionar una salida al azar según sus probabilidades utilizando este reparto.
+
+La fórmula general abrevia las dos operaciones que acabamos de hacer. Si z_j es la puntuación de la salida j, entonces:
+
+El numerador corresponde a una fila de la tabla; el denominador es la suma de las cinco exponenciales. No hay que memorizarla antes de comprender el ejemplo: expresa «convertir cada puntuación en un número positivo y repartir el total».
+
+Medir el error de esta predicción
+
+Volvemos al objetivo de nuestra pregunta: la siguiente letra de ana, después de su primera a, es n. Nuestro cálculo manual le asigna una probabilidad aproximada de 0,3092. Utilizamos el mismo coste del capítulo 2, el logaritmo natural negativo de la probabilidad de la salida real:
+
+El número L mide el coste de esta predicción. No restamos el identificador esperado al identificador de otra letra. Esos identificadores son nombres de casillas y su diferencia no mide un error de lenguaje. Lo que nos interesa es la probabilidad que recibió la casilla correcta.
+
+Con el reparto uniforme, la n habría recibido 0,2 y su coste sería aproximadamente 1,6094. En esta transición concreta, nuestro ejemplo manual tiene menor coste porque asigna más probabilidad a la letra observada. Eso todavía no demuestra que sea mejor en los otros nombres.
+
+Podemos comprobar la dirección de una corrección. Si aumentamos solo la puntuación de n de 0,5826 a 0,6826, softmax le asigna aproximadamente 0,3310 y el coste baja. Ese cambio mejora este ejemplo de ana. Sin embargo, después de una a, en alba la salida real es l; favorecer más a n puede perjudicar ese otro ejemplo.
+
+Por eso no aprenderemos corrigiendo únicamente la pregunta que hemos seguido. Calcularemos el coste de las 19 preguntas y usaremos su media. La red debe encontrar un reparto que tenga en cuenta los distintos objetivos observados.
+
+En el código, esa media se obtiene mediante F.cross. La función recibe los logits y los objetivos, y realiza internamente el cálculo estable del coste. No tenemos que darle probabilidades ya transformadas con softmax. Al generar sí llamaremos a softmax, porque la selección aleatoria necesita un reparto explícito.
+
+Corregir los números que produjeron la predicción
+
+La información recorre la red hacia atrás
+
+Hemos visto cómo un contexto produce una pérdida: las fichas aportan números; las capas los combinan; la activación los transforma; y las puntuaciones determinan las probabilidades. Ahora queremos averiguar cómo cambiar cada número ajustable para reducir la pérdida media. En el capítulo 3 las puntuaciones eran directamente los parámetros y bastaba una regla sencilla: subir la de la salida observada y bajar las demás. Aquí cada puntuación depende de pesos, sesgos y embeddings encadenados, así que necesitamos saber cómo llega la corrección hasta cada uno.
+
+Aquí recuperamos la derivada del capítulo 1. Una derivada indica cómo cambia una cantidad ante un pequeño cambio en otra. Para cada peso, sesgo o componente de un embedding, buscamos la derivada de la pérdida respecto a ese valor. Al conjunto de esas derivadas lo llamamos gradiente.
+
+La pérdida no depende de un embedding de forma directa. Depende de él a través de las operaciones siguientes. Para seguir esas dependencias se utiliza la regla de la cadena: se combinan las derivadas de los pasos intermedios.
+
+Podemos verlo sin cargar con todos los números de la red. Consideremos dos operaciones: primero u=2w-3 y después L=u^2. Si w=1, obtenemos u=-1 y L=1. La derivada del segundo paso es 2u=-2 y la del primero es 2. Multiplicándolas obtenemos -4, la derivada de la pérdida respecto a w.
+
+En una red se realiza el mismo tipo de cálculo sobre muchas dependencias. Si un parámetro participa por varias rutas, sus contribuciones se suman. El procedimiento se llama retropropagación: parte de la pérdida y recorre hacia atrás las operaciones que la produjeron.
+
+PyTorch registra esas operaciones y calcula las derivadas al llamar a backward(). Esto es la diferenciación automática. No significa que la biblioteca decida cómo debe ser nuestro modelo: nosotros elegimos las operaciones, los datos y la pérdida. La biblioteca calcula las derivadas de esa construcción.
+
+Calcular una derivada y actualizar un peso son pasos distintos
+
+Una vez calculado el gradiente, aplicamos la corrección del capítulo de las viviendas. Restamos a cada parámetro su derivada multiplicada por una tasa de aprendizaje. En el ejemplo escalar, con derivada -4 y tasa 0,1, el nuevo valor es 1-0,1(-4)=1,4. La pérdida baja de 1 a 0,04.
+
+En nuestra práctica, backward() calcula las derivadas y step() realiza las correcciones. La tasa será 0,1 y haremos 400 pasos. No tenemos que escribir una fórmula distinta para cada peso: el optimizador recorre los parámetros registrados por el modelo.
+
+Antes de calcular nuevas derivadas hay que limpiar las anteriores. PyTorch las acumula por defecto; si las dejáramos, mezclaríamos varios pasos sin haberlo decidido. Cada vuelta del entrenamiento hará, en este orden: enumerate[leftmargin=*] Limpiar los gradientes guardados del paso anterior. Calcular las predicciones y la pérdida con los parámetros actuales. Calcular el nuevo gradiente mediante retropropagación. Actualizar los parámetros usando ese gradiente. enumerate
+
+Los valores que cambian son los pesos, los sesgos y las fichas de embeddings. No cambian los identificadores de las letras ni los objetivos. Aprender modifica cómo interpreta y combina la red los símbolos, no qué símbolo representa cada identificador.
+
+Trabajar con varios ejemplos sin mezclarlos
+
+Organizar las 19 preguntas del entrenamiento
+
+Para entrenar, procesamos juntas las 19 preguntas que hemos obtenido de los cuatro nombres. Este grupo es el lote de entrenamiento. Cada pregunta conserva su contexto y su respuesta esperada. Todas utilizan los mismos parámetros de la red.
+
+Guardamos los contextos en una tabla llamada X. Cada fila es una pregunta y sus tres columnas contienen los identificadores del contexto. La tabla tiene 19 filas y tres columnas: por eso su forma es (19, 3). Es un tensor de dos dimensiones: una para recorrer las filas y otra para las posiciones dentro de cada fila.
+
+Las respuestas se guardan en un vector llamado y. Contiene 19 números, uno por pregunta, en el mismo orden que las filas de X. Por ejemplo, para el nombre ana, las primeras filas y respuestas son:
+
+center
+
+center
+
+Después aparecen las preguntas de los otros tres nombres hasta completar las 19. La segunda fila muestra nuestro ejemplo central: inicio, inicio, a, con objetivo n.
+
+El vector y tiene una sola dimensión de longitud 19. Python muestra su forma como (19,): los paréntesis y la coma son la manera de escribir una tupla con un solo número. Esa coma no indica que falte una dimensión. Una tabla de 19 filas y una columna tendría otra forma, (19, 1); la función de pérdida que usamos espera el vector de objetivos.
+
+Seguir las dimensiones del programa real
+
+Cada identificador de X se sustituye por los dos números de su ficha. El resultado contiene 19 preguntas, tres fichas por pregunta y dos componentes por ficha. Su forma es (19, 3, 2): tiene tres dimensiones, con tamaños 19, 3 y 2. Aquí conviene distinguir el número de dimensiones, que es tres, de los tamaños de esas dimensiones.
+
+Al aplanar las fichas de cada pregunta obtenemos 19 filas de seis componentes, (19, 6). La capa intermedia produce ocho valores por pregunta y la capa final produce cinco puntuaciones por pregunta. El número 19 no cambia porque seguimos trabajando con las mismas preguntas.
+
+Los identificadores se almacenan como enteros, con el tipo torch.long. Los parámetros se almacenan como números decimales, porque vamos a ajustarlos mediante cambios pequeños. Seleccionar una casilla y aprender su contenido son tareas diferentes.
+
+Contar los parámetros aprendidos
+
+La tabla de embeddings tiene cinco fichas con dos números: diez parámetros. La primera capa tiene ocho unidades; cada una posee seis pesos y un sesgo: 8(6+1)=56 parámetros. La última tiene cinco salidas; cada una combina ocho activaciones y añade un sesgo: 5(8+1)=45.
+
+En total aprenderemos 10+56+45=111 números. Aplanar no añade ninguno y aplicar tanh tampoco. Este recuento nos permite comprobar que el programa construye la red que acabamos de describir.
+
+Pasar del cálculo ilustrativo al entrenamiento real
+
+Hasta ahora hemos fijado algunos pesos a mano para recorrer una predicción sin ocultar las cuentas. El programa no utiliza esos valores ilustrativos. Crea una red con la misma organización, inicializa sus parámetros con semilla 42 y los corrige usando las 19 preguntas de entrenamiento.
+
+Mantendremos fijos el contexto de tres posiciones, las dos componentes por embedding, las ocho unidades intermedias, la tasa de 0,1 y los 400 pasos. No los elegiremos buscando una buena puntuación en lana o bala. Queremos observar lo que produce este experimento, no seleccionar después un resultado favorable.
+
+Para comparar con el capítulo 2 también construiremos el bigrama suavizado. Mirará solo la última posición de cada contexto. Los dos modelos usarán las mismas preguntas, las mismas cinco salidas posibles y la misma pérdida media. La diferencia será cómo calculan sus probabilidades.
+
+La lectura de la tabla tiene dos partes. En entrenamiento, la red obtiene menor pérdida que el bigrama: ajusta mejor los nombres que ha visto. En validación ocurre lo contrario. Eso significa que asigna, en conjunto, menos probabilidad a las salidas reales de esas diez preguntas de validación.
+
+No hay contradicción. La red dispone de más flexibilidad para ajustar detalles de solo cuatro nombres. Esos detalles pueden ayudar a repetir lo observado y perjudicar otras cadenas. Esta distinción entre mejorar en entrenamiento y mejorar fuera de él es parte del aprendizaje del capítulo.
+
+Además, algunos contextos de entrenamiento tienen varias respuestas. Después de la primera a, los nombres Ana y Anna piden n; Alba y Alan piden l. La entrada es la misma en los cuatro casos. Una red que solo recibe esa entrada no puede asignar probabilidad uno a las dos salidas a la vez: necesita repartir la probabilidad.
+
+Nuestro conjunto de validación es pequeño y ya apareció en los capítulos anteriores. La comparación sirve para comprender el mecanismo, no para medir una capacidad general de generar nombres. También cambian varias decisiones a la vez, incluida la longitud de contexto. No debemos atribuir cualquier diferencia únicamente al hecho de utilizar una red neuronal.
+
+Generar una letra y volver a empezar
+
+Después de entrenar, podemos pedirle al modelo un nombre. Empezamos con tres marcas de inicio. La red calcula cinco logits, softmax los transforma en probabilidades y seleccionamos una salida al azar según sus probabilidades.
+
+Si sale a, la escribimos y desplazamos el contexto a inicio, inicio, a. A continuación calculamos otro reparto. Ahora usamos la letra que acabamos de generar, no la letra de un nombre de entrenamiento. Repetimos el procedimiento hasta seleccionar al azar el final.
+
+El número seleccionado pertenece a la lista de salidas. Antes de introducirlo en el siguiente contexto, lo convertimos en letra y buscamos su identificador de entrada. Por ejemplo, la salida 0 significa a; esa misma letra utiliza el identificador de entrada 1. Esta conversión evita confundir las dos tablas.
+
+Usaremos una semilla de muestreo fija, 7, para repetir las muestras. Cambiar esa semilla cambia las selecciones aleatorias, pero no los parámetros entrenados ni la pérdida calculada sobre los textos fijos.
+
+Pondremos un límite de veinte decisiones. Si no aparece el final, mostraremos el resultado como truncado. Si aparece al principio, tendremos una cadena vacía. No ocultaremos esas posibilidades. Tampoco interpretaremos una muestra bonita como prueba de comprensión: el modelo sigue combinando regularidades aprendidas de unas pocas cadenas.
+
+Ejecutar y leer el programa
+
+La práctica necesita Python y PyTorch. En este ordenador está preparada en un entorno aislado del curso y se ejecuta en CPU. No necesita la tarjeta gráfica ni descargar modelos o datos. El archivo LEEME.md contiene las instrucciones para preparar otro equipo.
+
+Desde la raíz del repositorio, en PowerShell, se ejecuta así:
+
+La primera ruta selecciona el Python del curso; la segunda indica el archivo que va a ejecutar. El programa muestra las dimensiones, la evolución de la pérdida, la comparación con bigramas y diez muestras generadas.
+
+El programa explicado a partir del ejemplo
+
+Preparar los nombres y las dos listas de símbolos
+
+Este bloque prepara los datos y los nombres que utilizaremos en el resto del programa. Todavía no hace ninguna predicción.
+
+Las herramientas. La primera línea describe el archivo. math permite calcular el logaritmo de la referencia uniforme; time servirá para medir la duración. torch es PyTorch, la biblioteca que maneja los tensores y las derivadas. De ella importamos nn, que contiene las capas, y functional, al que damos el nombre corto F. En ese último módulo está la función de pérdida.
+
+Los datos. Las dos tuplas separan entrenamiento y validación. ENTRADAS enumera los cinco símbolos permitidos en un contexto; SALIDAS enumera las cinco respuestas posibles. Estas cadenas son vocabularios, no ejemplos que se entreguen a la red. Su orden asigna los identificadores.
+
+enumerate(ENTRADAS) recorre posiciones y símbolos: primero la posición 0 con inicio, después la 1 con a, y así sucesivamente. La expresión entre llaves guarda la correspondencia en un diccionario. Así, consultar A devuelve 1. El segundo diccionario funciona igual con la lista de salidas; consultar la n devuelve 3.
+
+Las dos últimas líneas fijan el tamaño de la red y el entrenamiento. El contexto tiene tres posiciones; cada ficha, dos componentes; la capa intermedia, ocho unidades. Se harán 400 actualizaciones con tasa 0,1 e inicialización de semilla 42. Estas constantes describen el experimento real, no los pesos elegidos a mano para explicar las cuentas.
+
+Transformar un nombre en filas de entrenamiento
+
+La función recibe nombres y devuelve dos colecciones: los contextos numéricos y sus objetivos. Con ana debe producir las cuatro filas que hemos seguido en papel.
+
+xs y ys empiezan como listas vacías. En la primera guardaremos entradas; en la segunda, respuestas. El bucle exterior toma un nombre cada vez. La condición rechaza una cadena vacía o cualquier carácter que no esté entre las cuatro letras permitidas. SALIDAS[:-1] significa «todas las salidas salvo la última», excluyendo el final.
+
+La ventana se inicia como [0,0,0]. Multiplicar una lista de un solo cero por tres repite ese elemento. El bucle interior recorre las letras del nombre y una marca final. En cada vuelta, append guarda una fila en cada lista. copy() guarda una copia de la ventana y el diccionario de salidas convierte la respuesta en su número.
+
+Sigamos ana. La primera vuelta guarda contexto [0,0,0] y objetivo 0, que significa a. Después actualiza la ventana a [0,0,1]. En la segunda vuelta guarda esa ventana y el objetivo 3, que significa n. Es exactamente nuestra pregunta central. Después continúa con la última a y con el final.
+
+contexto[1:] retira la casilla más antigua. La suma de listas añade a la derecha la nueva ficha. No hacemos esa actualización cuando la salida es final, porque no habrá otra predicción dentro de ese nombre.
+
+La comprobación if not xs evita devolver un conjunto vacío. Las últimas líneas convierten las listas en tensores enteros de CPU. La función devuelve ambos juntos: por eso podemos escribir x, y = preparar(...). Con los cuatro nombres, x tiene 19 filas de tres números e y tiene 19 respuestas.
+
+Construir el recorrido que hace una predicción
+
+Esta función crea la red y la devuelve. Cada línea añade una operación al recorrido de un contexto. Los parámetros se inicializan aquí; todavía no se han corregido con los nombres.
+
+nn.Sequential significa que las operaciones se ejecutan una detrás de otra. Al llamar después a modelo(x), PyTorch entrega la salida de cada línea a la siguiente.
+
+Buscar fichas. La primera línea crea Embedding(5, 2): cinco fichas, dos números por ficha. Con una entrada [0,0,1] buscará dos veces la ficha de inicio y una vez la de a. Esos contenidos se aprenderán durante el entrenamiento.
+
+Colocar los seis números. Flatten(start=1) conserva la dimensión de los ejemplos y aplana las dimensiones que vienen después. Para una sola pregunta convierte una tabla de tres parejas en una fila de seis componentes. No mezcla las preguntas entre sí.
+
+Combinar y transformar. La primera capa Linear recibe seis números y produce ocho sumas ponderadas, con sus sesgos. Tanh transforma cada una en una activación. La última capa recibe ocho activaciones y produce cinco logits, uno por salida posible. Los sesgos se incluyen por defecto en las capas lineales.
+
+.to("cpu") sitúa los parámetros en CPU. El resultado de esta función es el modelo con sus 111 números ajustables. No incluimos softmax al final porque durante el entrenamiento la función de pérdida recibirá los logits directamente. La transformación a probabilidades aparecerá al generar una letra.
+
+Repetir la predicción y la corrección
+
+Aquí hay dos funciones distintas. evaluar devuelve un número de pérdida sin cambiar el modelo. entrenar utiliza la pérdida para modificar los parámetros y devuelve su evolución.
+
+En evaluar, modelo(x) calcula una fila de logits por contexto. La pérdida compara cada fila con su objetivo de y y promedia los costes. .item() convierte ese resultado de un solo valor en un número de Python. no() indica que en esta evaluación no necesitaremos derivadas.
+
+En entrenar creamos el optimizador. modelo.parameters() proporciona las fichas, pesos y sesgos que puede modificar. lr=TASA fija el tamaño de las correcciones. El historial guarda primero la pérdida del modelo inicial, asociada al paso cero.
+
+Una vuelta del bucle. Primero se descartan los gradientes anteriores con zero. Después se calculan los logits y la pérdida actual. backward() calcula las derivadas. step() las usa para actualizar los parámetros. La siguiente vuelta volverá a predecir con los nuevos valores.
+
+range(1, PASOS + 1) recorre del paso 1 al 400, incluidos. Todos los pasos utilizan juntas las 19 preguntas de entrenamiento. La condición del resto de dividir entre 50 reconoce los pasos 50, 100 y los demás múltiplos. En ellos se vuelve a medir la pérdida y se guarda en el historial.
+
+El conjunto de validación no aparece en esta función. Tampoco detenemos el entrenamiento cuando una muestra generada parece bonita. Terminamos en el número de pasos fijado. En estas capas no hay un comportamiento distinto para entrenamiento y evaluación; no solo evita preparar derivadas cuando no hacen falta.
+
+Calcular la referencia del capítulo 2
+
+Estas funciones reconstruyen y evalúan el bigrama. Lo hacen con tensores, pero las cuentas son las mismas que en el capítulo 2: contar continuaciones y normalizar cada fila.
+
+torch.ones crea una tabla de cinco por cinco llena de unos. Cada uno representa la papeleta añadida por el suavizado. Aún no hemos contado ningún nombre.
+
+zip(x, y) toma cada entrada junto con su objetivo. De la entrada solo utiliza fila[-1], su última casilla. Para nuestra pregunta [0,0,1] y objetivo 3, aumenta la casilla de fila 1 y columna 3: después de a, se observó n. Las dos posiciones más antiguas no intervienen, porque esto sigue siendo un bigrama.
+
+La suma con dim=1 obtiene un total por fila. keepdim=True conserva cada total como una columna, para dividir las cinco casillas de esa fila por el mismo número. Por ejemplo, la fila de a suma trece después del suavizado. La división produce su reparto de probabilidades.
+
+En la evaluación, x[:, -1] selecciona la última casilla de todas las preguntas. El segundo índice, y, selecciona la salida real de cada una. Así obtenemos una probabilidad por transición, no una nueva predicción elegida al azar.
+
+log() calcula el logaritmo natural de cada probabilidad. mean() hace la media, el signo menos da el coste y item() devuelve el número. Es el mismo procedimiento que ya conocíamos. El suavizado evita las probabilidades cero en esta tabla.
+
+Escribir un nombre con el modelo aprendido
+
+La función recibe un modelo entrenado y un generador aleatorio. Devuelve el texto escrito y una marca que distingue terminar normalmente de alcanzar el límite de pasos.
+
+Comenzamos con tres marcas de inicio y una lista de letras vacía. No estamos aprendiendo, así que el bucle trabaja dentro de no(). El límite permite hasta veinte decisiones con el valor por defecto.
+
+[contexto] añade los corchetes de una lista de preguntas: hay una sola pregunta con tres identificadores. Convertida en tensor tiene forma (1,3). El modelo devuelve cinco logits en una fila. softmax(dim=1) los convierte en un reparto y [0] extrae esa única fila.
+
+torch.multinomial selecciona un índice al azar según esas probabilidades; el argumento 1 pide una sola elección. generator=rng indica qué generador aleatorio debe usar y item() extrae el índice del resultado.
+
+Si sale el índice 0, SALIDAS[0] lo traduce a la letra a. La añadimos al texto y buscamos su ficha de entrada, que es 1, para desplazar la ventana. El nuevo contexto será [0,0,1]. Esta traducción entre dos listas es necesaria: copiar directamente el índice seleccionado daría un contexto equivocado.
+
+Si aparece final, unimos las letras con join y devolvemos True. El símbolo final no se añade. Si se agotan los pasos, devolvemos False. Puede haber texto vacío si la primera selección aleatoria ya elige final. No volvemos a seleccionar al azar para ocultarlo.
+
+Poner en marcha el experimento completo
+
+La función ejecutar organiza las anteriores. En esta primera parte prepara los datos, entrena y reúne las medidas. Continúa en el bloque de la página siguiente.
+
+Limitamos PyTorch a un hilo de CPU porque el trabajo es muy pequeño. Fijamos la semilla antes de crear la red, para repetir la inicialización. Las llamadas a preparar construyen las preguntas de entrenamiento y las de validación por separado.
+
+crear() devuelve la red inicial. La llamada a entrenar recibe únicamente x e y: los datos de validación, xv e yv, no entran ahí. La variable historial recibe las parejas de paso y pérdida que se guardaron durante el aprendizaje.
+
+El reloj se lee antes y después de entrenar. La diferencia mide esa llamada completa, incluido el optimizador y las evaluaciones periódicas. No incluye instalar PyTorch, importarlo o generar los nombres finales. Por eso este tiempo puede ser menor que el que percibes al arrancar todo el archivo.
+
+Después se ajusta el bigrama con x e y. El diccionario resultados guarda un nombre y un valor para cada medida: uniforme, bigramas en ambos conjuntos y MLP en ambos conjuntos. Las funciones de evaluación solo consultan los modelos.
+
+El recuento de parámetros suma numel(), el número de valores de cada tensor ajustable. Debe dar 111. La última entrada del diccionario guarda los segundos medidos. Hasta aquí hemos reunido las medidas; aún falta imprimirlas y generar muestras.
+
+Leer la salida y finalizar la ejecución
+
+Estas líneas siguen dentro de ejecutar hasta su return. Al final aparece la condición que arranca el programa cuando ejecutamos el archivo directamente.
+
+Las primeras impresiones muestran la versión de PyTorch, las formas de x e y y el historial. Es útil comprobar las formas antes de leer la pérdida: deben aparecer 19 preguntas de tres identificadores y 19 objetivos.
+
+resultados.items() permite recorrer los nombres de las medidas junto con sus valores. Después creamos el generador de muestras en CPU con semilla 7. Esta semilla controla las selecciones aleatorias y es independiente de la utilizada al crear los pesos. El generador se prepara fuera del bucle para que avance entre muestras.
+
+En cada una de las diez vueltas, generar devuelve texto y una marca. repr(texto) imprime el texto entre comillas, haciendo visible una cadena vacía. La expresión condicional elige la palabra «fin» o «truncado». No imprime únicamente las muestras que se parecen a nombres conocidos.
+
+La función devuelve también el modelo, el historial y las medidas para poder consultarlos en un cuaderno. La condición final sobre name llama a ejecutar() si arrancamos el archivo como programa. Si otro programa lo importa, las funciones quedan disponibles sin iniciar automáticamente el experimento.
+
+Ya están representadas todas las líneas del archivo. Los dos últimos bloques mantienen la sangría porque pertenecen a la misma función. En el cuaderno están reunidos en una sola celda, para que Python reciba la definición completa antes de ejecutarla.
+
+Ejercicios
+
+enumerate[leftmargin=*] Escribe los cinco contextos y objetivos que produce anna. Mantén separadas la entrada y la respuesta esperada. Traduce inicio, inicio, a a identificadores de entrada. Traduce el objetivo n a su identificador de salida. Explica la función de cada número. Distingue el identificador de una letra y su embedding. Indica cuál permanece fijo y cuál cambia al entrenar. Recupera las tres fichas ilustrativas de inicio, inicio, a y aplánalas. Señala qué dos componentes corresponden a la letra más reciente. Reconstruye los 111 parámetros sin mirar el total: cuenta fichas, pesos y sesgos de cada capa. Sigue la primera unidad del ejemplo manual: pesos [2,0,0,0,0,0], sesgo 0,1 y entrada ilustrativa. Calcula su suma y su activación tanh. Sigue la salida n del ejemplo manual: su único peso no nulo vale 2 y recibe la activación anterior. Calcula su logit, su probabilidad cuando los otros cuatro logits son cero y el coste si n es el objetivo. Explica qué recibe F.cross. Distingue calcular la pérdida de seleccionar al azar la siguiente letra. Para u=2w-3 y L=u^2, calcula la derivada en w=1$ y una actualización con tasa 0,1. Relaciona el cálculo con backward() y step().
+
+Describe las formas (19, 3), (19, 3, 2), (19, 5) y (19,). Indica cuántas dimensiones tiene cada tensor y qué significa cada tamaño.
+
+Lee la tabla de resultados reales: indica dónde mejora la red y dónde empeora respecto al bigrama. Explica por qué no se contradicen ambos resultados.
+
+Supón que la selección aleatoria devuelve el identificador de salida 0. Escribe la letra generada y el identificador que añadimos al contexto. Explica también qué ocurre si sale final o se agota el límite.
+
+La dedicación orientativa del índice sigue siendo de seis horas. Puedes repartirla en dos sesiones: primero recorrer la predicción manual hasta la pérdida; después estudiar las correcciones, ejecutar el programa y resolver los ejercicios. Si una forma o una línea no se entiende, vuelve al ejemplo de inicio, inicio, a antes de avanzar.
+
+Reflexión
+
+¿Por qué la red mejora al bigrama en entrenamiento y empeora en validación? ¿Qué cambiaría con muchos más nombres?
+
+¿Qué se gana al separar el identificador de una letra de la representación que la red aprende para ella?
+
+¿Qué decisiones del experimento cambian a la vez al pasar del bigrama a la red, y por qué eso dificulta atribuir la diferencia a una sola causa?
+
+Conclusión
+
+Hemos sustituido la tabla de puntuaciones por una red que mira las tres últimas letras: cada letra se convierte en un embedding, una capa con tanh combina los seis números y una capa final produce los logits. La pérdida y la regla de corrección de la salida son las del capítulo 3; la novedad es que la corrección debe llegar, mediante retropropagación, a los pesos, los sesgos y los embeddings. Con solo cuatro nombres, la red ajusta mejor el entrenamiento que el bigrama, pero predice peor las cadenas de validación: su flexibilidad necesita más datos para convertirse en mejores predicciones.
+
+El itinerario de Neural Networks: Zero to Hero y el proyecto makemore, de Andrej Karpathy, orientan el paso de bigramas a redes de caracteres. Los ejemplos y la práctica de este capítulo son propios.
+
+Las operaciones se han contrastado con la documentación de PyTorch sobre Embedding, Linear, CrossEntropyLoss y diferenciación automática. La versión de la práctica es PyTorch 2.8.0 para CPU; las versiones del entorno están registradas junto a los originales.
+
+El siguiente capítulo del índice es tokenización. Estudiaremos cómo dividir el texto en unidades distintas de las letras. La distinción aprendida aquí seguirá siendo útil: una cosa es el identificador de una unidad y otra la representación que la red aprende para ella.
