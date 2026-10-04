@@ -22,6 +22,8 @@ Todos los modelos son deliberadamente pequeños: **se entrenan en el procesador 
 Este repositorio contiene los **11 cuadernos interactivos** del libro, uno por capítulo, listos para ejecutarse en Google Colab.
 
 > 📗 Forma parte de la misma serie que [**Introducción a Deep Learning**](https://github.com/HernanDiaz/deep-learning).
+>
+> 🇬🇧 *Prefer English?* The English edition, **Understanding and Building Language Models**, has its notebooks in the [`/en`](./en) folder.
 
 ---
 
@@ -35,7 +37,8 @@ language-models/
 ├── 11_Proyecto_integrador.ipynb
 ├── cuaderno/N/                        ← Enlaces del libro a cada cuaderno en Colab
 ├── video/N/                           ← Enlaces del libro al vídeo de cada capítulo
-└── material/                          ← Datos que usan los cuadernos
+├── en/                                ← Edición en inglés: cuadernos, enlaces y portada
+└── material/                          ← Datos que usan los cuadernos (de las dos ediciones)
 ```
 
 ---

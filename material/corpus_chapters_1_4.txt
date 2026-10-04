@@ -1,0 +1,1181 @@
+Learning to Estimate the Price of a House
+
+A Question to Start
+
+Suppose we want to estimate the price of a house before we know its listed price. We are given its floor area and a few examples of other houses. A first intuition is that, if everything else is similar, a bigger house is likely to cost more. Can we turn that intuition into a rule that improves as it sees examples?
+
+In a real situation, the location, the condition, the age and many other features would also matter. Here we will work with fictitious houses and a deliberately simple relationship. We are not looking for an appraisal tool: we want to watch how a model learns, without too many things going on at once. It is the same mechanism by which almost all the language models in this book will learn.
+
+Can a program that starts from a wrong rule correct it on its own by comparing it with a few examples?
+
+We will follow the same path we would take when investigating the problem: propose an estimate, compare it with the data, understand what goes wrong and correct the rule. At the end we will bring everything together in a short Python program that needs no graphics card and no model downloads. The important part will be being able to read its results and explain why it has improved, not just getting it to run.
+
+From a Few Houses to a Simple Rule
+
+The Data We Will Learn From
+
+Table contains our three examples. We will express prices in thousands of euros: writing 150 will mean 150,000 euros. This choice makes the numbers smaller without changing what they represent.
+
+With these data we can see that adding 50 square meters raises the price by 100,000 euros. As the authors of the example, we know this pattern. However, the program we are going to build will not receive an instruction saying “raise the price by 100,000 euros.” It will receive the pairs of area and price, and a procedure for adjusting its rule.
+
+This is the first important distinction: the examples tell us which results we expect; the model defines what kind of rule we are going to fit. We will choose a straight line because it is easy to draw, to interpret and to correct.
+
+What Each Part of the Formula Represents
+
+Before using letters, we can write our proposal in words:
+
+Estimated price = effect of the area + starting adjustment.
+
+The part tied to the area will make the price change as we go from a small house to a large one. The starting adjustment will let us shift the whole estimate up or down.
+
+To keep the calculations manageable, we will count the area in blocks of 50 square meters. A 50 m2 house has one block; a 100 m2 house, two; and a 150 m2 house, three. It does not have to be a whole number: 75 m2 is one and a half blocks. We will call that quantity x:
+
+It is only a change of unit: the house still has the same area.
+
+Now we can write the model's rule:
+
+The symbol y is the estimated price, and y is the known price of the example; both are in thousands of euros. The weight w tells us how many thousands of euros the rule adds for each 50 m2 block. The bias b is an adjustment that is added to every estimate.
+
+If w=50 and b=50, the model adds 50,000 euros per block of area and another 50,000 euros as an adjustment. For house B, which has two blocks, it computes 50·2+50=150: an estimate of 150,000 euros.
+
+The bias should not automatically be read as the value of the land or as the real price of a house with zero square meters. It is the intercept: the height at which the line crosses the vertical axis, a fitting parameter. Our data contain no houses with zero area, so they do not allow us to give it that economic interpretation.
+
+Weight and Bias Produce Different Changes
+
+Imagine first that we increase w from 50 to 70 and keep b=50. House A goes up 20,000 euros, B goes up 40,000 and C goes up 60,000. The larger the area, the larger the change.
+
+Now let us keep w=50 and increase b from 50 to 80. All three estimates go up by exactly 30,000 euros. The bias does not depend on how many blocks each house has. Figure shows this difference: changing the weight changes the slope; changing the bias shifts the line.
+
+With this we can already tell inputs and parameters apart. The area is an input: it changes when we look at another house. The weight and the bias are parameters: the same pair (w,b) is used for all houses. Learning will consist of correcting that pair, not of inventing a separate rule for each row of the table.
+
+Checking Our First Estimate
+
+We will start with the rule we have just interpreted: w=50, b=50. It is not a conclusion drawn from the data; it is the starting point chosen so that we can watch the corrections. Table compares its results with the prices in our examples.
+
+The negative sign does not mean a negative amount of money. It means that our estimate is below the target. For house B, for example, the rule predicts 150,000 euros against a fictitious price of 250,000: it falls short by 100,000 euros.
+
+Moreover, the error grows with the area, as Figure shows. That observation suggests that our rule raises the price too little when square meters are added. Without computing any derivative yet, we already have a hypothesis: increasing the weight could improve the fit.
+
+A person can inspect three points and propose a correction. But an algorithm needs an explicit criterion for comparing rules and a procedure that can be repeated. The next step will be to express how large the errors of the whole rule are.
+
+Summarizing the Errors in a Single Measure
+
+Why Adding Them Up Is Not Enough
+
+Suppose a rule is off by +50 for one house and by -50 for another. If we add both errors we get zero, even though neither prediction is correct. We need a measure in which the differences do not cancel out because of their sign.
+
+One option is to square each error and then take the average. In our three examples, the squares are 2500, 10,000 and 22,500, and their average is (2500+10,000+22,500)/3=11,666.67.
+
+This number is called the mean squared error. In training we will use it as the loss: the quantity we want to reduce. It is not a price, nor a percentage of correct answers. Its units are thousands of euros squared. To report a monetary error it would be more natural to use other measures; here we care about its usefulness as a fitting objective.
+
+The Formula Expresses the Same Operation
+
+When there are more examples, writing out the terms one by one will become awkward. Summation notation lets us abbreviate exactly the calculation we have just done:
+
+The letter L stands for the loss. The subscript i identifies a house, and n indicates how many houses we use. Inside the parentheses is our estimate minus the known price. The symbol Σ means that we repeat that operation for all the examples and add up the results.
+
+Equation adds nothing new: it is a compact way of saying “compute the errors, square them and take the average.” It is useful to read formulas this way, going back to the concrete operations they represent.
+
+Trying an Improvement by Hand
+
+Let us now try w=60 and keep b=50. The estimates become 110, 170 and 230 thousand euros. The errors are -40, -80 and -120. The average of their squares is 7466.67, smaller than the initial 11,666.67.
+
+The change has improved the fit according to our criterion. We do not know yet whether it was too small or what change should come next, but we can already tell an improvement from a worsening. We have also confirmed that the visual intuition about the weight made sense at the starting point.
+
+How to Choose the Direction of a Correction
+
+Looking at What Happens on Both Sides
+
+We could try weight values at random, keep the ones that lowered the loss and repeat. With a rule that has two parameters this is conceivable, but we want a more systematic way of deciding which way to move.
+
+Let us go back to w=50, b=50. If we try a slightly smaller weight, w=49, the loss is 12,138. If we try a slightly larger one, w=51, it drops to 11,204.67. This comparison indicates that, near the current point, increasing the weight reduces the loss.
+
+The derivative describes that local sensitivity: how much, and in which direction, the loss changes when we modify a parameter. A negative slope signals that a small increase in the parameter decreases the loss. A positive slope suggests the opposite move. The word “local” matters: a very large change may take us to another region where the situation is different.
+
+When there are several parameters we speak of a partial derivative. To study the effect of the weight, we hold the bias fixed. This does not mean we ignore the bias forever; we separate the two influences before deciding on the update. The collection of partial derivatives is called the gradient. For short, we will speak of the gradient of the weight and the gradient of the bias.
+
+The Weight Formula, Connected to Each House
+
+Let us call ei=wxi+b-yi the error for house i. The derivative of the loss with respect to the weight is:
+
+Here the symbol ∂ is read as “partial derivative.” The formula asks us to multiply each house's error by its input, add up the contributions and multiply by 2/n. The factor of two appears because we have differentiated a squared error.
+
+Why does xi appear? Changing the weight by one unit changes the prediction for A by one unit, for B by two and for C by three. So the houses do not respond equally to a change in the weight. That dependence on the area is exactly what the factor xi captures.
+
+We can see where the formula comes from by following a single house, B, with x=2 and error -100. On its way to the loss, the weight goes through a chain of operations: it is multiplied by two and the bias is added to give the prediction, the price is subtracted to give the error, and the error is squared. Each unit of weight moves the prediction, and with it the error, by two units; and the derivative of the square is twice the error, 2(-100)=-200. Combining the two sensitivities, B's contribution is 2e x=2(-100)·2=-400. This way of chaining sensitivities is called the chain rule. In Chapter 4 we will see how PyTorch applies it for us, with backpropagation, in models with many parameters.
+
+At our starting point, each house contributes 2eixi: 2(-50)·1=-100, 2(-100)·2=-400 and 2(-150)·3=-900. Their sum is -1400 and, divided by the three houses, it gives a gradient of the weight of about -466.67. The sign confirms what we observed when we tried 49 and 51: it pays to increase the weight slightly. In fact, those two trials already anticipated it: (11,204.67-12,138)/2=-466.67, exactly the gradient.
+
+The Bias Shifts All the Estimates
+
+The bias affects all three houses equally. When we increase it by one unit, every estimated price goes up by one unit, whatever the area. Its derivative does not need to multiply by xi:
+
+The contributions 2ei are -100, -200 and -300; their mean, -200, is the gradient of the bias. It is also negative, because all the estimates are below their targets.
+
+Although the data were generated with a bias of 50, this first indication suggests increasing it. This is not a contradiction: the algorithm evaluates the sensitivity at the current pair, whose weight is still wrong. Increasing the bias can reduce part of the error while the weight is being adjusted. Later, the bias will be able to go back toward 50. The parameters act together; the algorithm does not know their correct values in advance.
+
+Taking a Step Without Overshooting
+
+The Learning Rate
+
+The gradient points the way, but we still have to decide how much to change the parameters. Too large a move can jump over a good region and end with a larger loss. The learning rate, written η, controls the size of the step.
+
+For the weight we apply this rule:
+
+We subtract the gradient to move in the direction in which the loss goes down. If the gradient is negative, subtracting it increases the parameter. The rate is a setting of the training procedure, chosen by us and not learned from the data: a hyperparameter.
+
+We will use η=0.05. With the initial weight of 50 and its gradient of -466.67, the new weight will be approximately 50+23.33=73.33. We can already interpret the change: the rule goes from adding 50,000 to about 73,333 euros for each 50 m2 block.
+
+We apply the same idea to the bias, bnew=b-η ∂ L/∂ b. Since its gradient was -200, we get 50-0.05·(-200)=60. Both gradients are computed with the old parameters, and only then are both parameters updated. If we want to follow this procedure, we must not recompute the second gradient with the new weight.
+
+Computing the gradients and moving the parameters a little in the opposite direction, over and over again, is called gradient descent. It is the procedure by which every neural network in this book will learn.
+
+Looking at the Houses Again
+
+An update only makes sense once we check its effects. With w≈73.33 and b=60, house A is estimated at 133,333 euros; B, at 206,667; and C, at 280,000. Table shows that all three are still below their prices, but the differences are smaller.
+
+The loss drops from 11,666.67 to about 2351.85. We did not have to guess a perfect rule: we applied a calculated update and checked that it improves the fit. This cycle of predicting, measuring and updating, repeated many times, is what we call training.
+
+Repeating the Process and Watching What It Learns
+
+After the first update we compute the errors again. Since the predictions have changed, the derivatives will change too. The algorithm does not repeat the same update indefinitely: it re-evaluates the situation at every step.
+
+Table shows how the two parameters evolve. The weight approaches 100, which amounts to adding 100,000 euros for each 50 m2 block. The bias rises to about 67 at the fifth step and then slowly comes down: 64.5 after 20 steps, 55.5 after 100 and 50.0 after 1000. This is what we anticipated: raising it helped while the weight was too small.
+
+The parameters in the last row are rounded. Such a small loss is possible because our fictitious data follow a straight line exactly and have no noise. With real prices we should not expect this behavior from a single feature.
+
+Figure lets us interpret the result beyond the loss. The model has fitted a single line for all three houses. It can now use it to compute an estimate for a different area, although that alone does not guarantee that the estimate is suitable for any house.
+
+What Happens If We Correct Too Fast
+
+Let us return to a question we can recognize intuitively. If an estimate falls short, correcting it upward can help. But if we raise it too much, it will become too high. The sign of the gradient guides a small move; it does not guarantee that any step size is appropriate.
+
+To compare rates, we will use twenty updates, always with the same data and the same initial rule. The only thing that changes will be the rate. That way we can attribute the differences to that decision, instead of mixing several changes at once. Table and Figure show the result.
+
+The third run produces absurdly large values. They are not plausible prices: they are the result of an unstable numerical procedure. Increasing the number of steps while keeping that rate does not fix the cause and can make the problem worse.
+
+We are not discovering a universal rate for learning prices or for training neural networks. The choice depends on the problem and its units: if we measured the area in square meters instead of blocks, the useful rates would be different. The general lesson is how to investigate: keep a point of comparison, change one decision and observe a measure together with its interpretation. In Chapter 7 we will choose the rate of a language model in this way, trying several in an orderly fashion.
+
+A New House and the Limits of the Example
+
+Using What Was Learned Without Further Training
+
+We held out a 75 m2 house, whose fictitious price is 200,000 euros. It is not among the three houses that produce the gradients. After training, 75 m2 becomes x=1.5. With parameters close to w=100, b=50, the estimated price will be about 100·1.5+50=200, in thousands of euros.
+
+This operation is inference: applying the learned parameters to an input. We do not compute gradients or change the parameters to give an answer. In Chapter 8, inference in a language model will mean generating text with its already learned parameters. The area of 75 m2 is inside the training range, between 50 and 150 m2, so the example illustrates interpolation. If the area were outside that range, for example 300 m2, we would be talking about extrapolation, which is much riskier.
+
+Why One Correct Prediction Does Not Prove Everything
+
+We have checked a single point, which was also generated from the same line and without noise. The result shows that the fit reproduces that relationship at one additional input. It does not show that the area is enough to value real houses, nor that the procedure would hold up to changes in neighborhood, age or condition.
+
+If we repeatedly used the held-out price to choose the rate or the number of steps, that data point would indirectly take part in our decisions. It would become a validation point, and we would need other, independent examples for a final evaluation. The separation depends on how we use the information, not just on what we call a variable. In Chapter 7 we will organize this idea with three datasets: training, validation and test.
+
+The Family of Rules Also Sets Limits
+
+A straight line can only learn a straight-line relationship. It cannot describe every set of prices. If the data form a curve, or if there are houses with the same area and very different prices, no single line can be made to pass exactly through all the points.
+
+In that case, insisting with more updates may not solve the problem. We would have to ask whether features are missing, whether there is noise or whether we need another family of models. Telling these causes apart from a badly chosen rate is part of the work of machine learning.
+
+What This Story Shares with a Language Model
+
+In the example we have predicted a price from an area. A language model does something similar with text: given what has been written, it assigns a probability to each possible continuation. In Chapter 2 the continuations will be letters; in Chapter 5 we will see that they can also be pieces of words, called tokens.
+
+Imagine the fragment “The house has a floor area of” and a language model that has to continue it: it assigns probabilities to different continuations. During training, we know what comes next in the example text. That continuation lets us measure the error of the prediction and adjust the parameters.
+
+The cycle keeps the ideas we have studied: there are data, shared parameters, predictions, a loss and updates with gradient descent. What changes are the input, the output, the shape of the model and the loss. To predict text we use a loss based on the probability the model gives to the correct continuation, which we will meet in Chapter 2, instead of the squared error of a price.
+
+Nor should we mistake the parallel for a complete equivalence: our line contains neither the attention nor the Transformer of Chapter 6, and it cannot hold a conversation. It is a first experience with the fitting mechanism that will reappear in much larger models.
+
+One last distinction is essential. Reducing a loss means improving with respect to the objective we defined. In a language model, producing a likely continuation does not guarantee that all its statements are true. In the same way, reproducing our fictitious prices does not turn the line into an appraisal tool.
+
+Common Pitfalls
+
+An input is not a parameter. The area changes from one house to another; the weight and the bias are the same for all of them.
+
+An error is not the loss. Each house has its own error; the loss summarizes them all in a single number.
+
+The gradient is not the update. The gradient says which way to correct; the rate decides how much.
+
+More steps do not fix an excessive rate. If the loss grows, training longer makes it grow even more.
+
+Getting the held-out house right does not make the line an appraiser. It only checks the same relationship, without noise, at one more point.
+
+The Program, Block by Block
+
+The file practice.py brings together everything above in about sixty lines of standard Python. It only imports math, which comes with Python. We will go through it in four blocks; the line numbers are those of the file.
+
+12
+
+The Data and the Prediction
+
+Each house is a pair: area in square meters and price in thousands of euros. The code keeps the units a person would use when entering the data; to_input converts the area into 50 m2 blocks, and predict applies the rule y=wx+b. The call predict(100, 50, 50) returns 150: 100 m2 is two blocks, and 50·2+50=150 thousand euros. The held-out house is stored separately and is not used for training.
+
+12
+
+The Loss and the Gradients
+
+loss computes the list of errors, which corresponds to the last column of Table, and returns the average of their squares: this is Equation. It evaluates the parameters it receives, but does not modify them.
+
+gradients starts with two accumulators at zero and, for each house, adds its contribution to the two gradients: dw += 2 * error * x and db += 2 * error are Equations and, term by term. At the end it divides by the number of houses, because the loss is an average.
+
+12
+
+Training
+
+train starts from w=50 and b=50 and repeats the chapter's cycle: it computes the gradients and updates both parameters. On line 38, Python evaluates the whole right-hand side before assigning, so both updates use the previous parameters, as we did by hand. At each step, the history stores the number of updates, the weight, the bias and the loss; Table comes from it. Step zero is the state before any update.
+
+The check on lines 39 and 40 stops the program if the parameters blow up. With an excessive rate they grow out of control, and without that limit Python would eventually fail when squaring a huge number.
+
+26
+
+The Complete Experiment
+
+compare_rates trains three times from the same point, with twenty steps and a different rate each time, and prints the final loss: these are the numbers in Table. The underscore collects the values we do not need. run trains with rate 0.05 for 1000 steps, prints the rows of Table, estimates the held-out house and compares the rates. In the strings that begin with f, :9.4f writes a number with four decimal places, and :.6g writes it with six significant digits. The last two lines start the experiment only when the file is run as a program.
+
+To run it, open the chapter's notebook in Colab (the link is at the end of the chapter): it contains this same program split into cells, and there is nothing to install. It takes less than a second, and the held-out house is estimated at 200.00 thousand euros, as we expected. In the notebook you can run it piece by piece and experiment: change the rate, the number of steps or the starting point and see what happens.
+
+Exercises
+
+Explain in your own words what the weight and the bias mean in the example. What is the difference between changing the area of a house and changing the weight of the model?
+
+A house has 125 m2. Convert its area into the input x and compute its estimated price with w=50, b=50. Express the result in euros.
+
+Reconstruct the three initial errors and their mean loss. Explain why the loss is not expressed directly in euros.
+
+Increase only the weight, from 50 to 60, and keep the bias. Compute the three predictions and check whether the loss improves.
+
+Compute each house's contribution 2eixi to the gradient of the weight at the starting point. Do the same with the contributions 2ei to the gradient of the bias, and find the averages.
+
+Apply one update with rate 0.05. Interpret the new weight and bias and compute the resulting loss.
+
+Why can the bias increase in the first step even though the data were created with a bias of 50?
+
+Run the program and check the three rates in Table. Explain the difference between making slow progress and diverging.
+
+Try the rates 0.1, 0.15 and 0.2 with twenty steps, in the notebook or by changing compare_rates. Which one lowers the loss the most? From what rate on does training diverge?
+
+Estimate the price of the 75 m2 held-out house using the final parameters. Is it interpolation or extrapolation? What are the limits of this check?
+
+Explain the difference between training and inference using the chapter's code.
+
+Two houses have 100 m2, but one costs 200,000 euros and the other 300,000. Can this model get both exactly right? Reason about what information might be missing.
+
+Describe in 100–150 words what this example shares with training a language model, and mention at least three differences.
+
+Suggested time: about four hours. A good way to divide them is to first compute by hand the initial loss, the gradients and the first update, then run the program and, finally, solve the exercises and try other rates in the notebook.
+
+Reflection
+
+Why does an almost zero loss on the training examples not guarantee good estimates for new houses?
+
+Why is it a good idea to change only one thing at a time when comparing rates?
+
+A language model has millions of parameters instead of two. Which parts of this procedure will stay the same, and which will be harder?
+
+Conclusion
+
+We started from a concrete question: how to improve a rule that estimates prices from areas. First we interpreted its two parameters; then we looked at the errors and chose a measure to compare them. Derivatives came in when we needed to decide which way to correct, and the learning rate let us control how far we moved. Repeating those updates is gradient descent, and with it the wrong rule we started from found the line of the data on its own.
+
+The program does nothing different from those calculations: it repeats them consistently. Understanding what each step represents lets us recognize when it improves, when it diverges and when the line itself cannot represent the data. That combination of intuition, formula and checking will be the foundation for moving toward language models.
+
+The way derivatives and gradient descent are presented is inspired by the first lecture of Andrej Karpathy's series Neural Networks: Zero to Hero, which builds the small derivative engine micrograd from scratch. The house data, the explanations, the exercises and the code are original work.
+
+In Chapter 2 we will change the question: instead of a price, the model will propose the next letter of a name. At first, counting will be enough; in Chapter 3 we will return to gradient descent so that a network can learn those same probabilities.
+
+Learning to Continue a Text
+
+A Question to Start
+
+In the previous chapter we looked at a house and proposed a price. Then we compared the estimate with the price in the example. Now we will change the question: if a text begins with a letter, what could come next? We will still learn from examples, but the answer will no longer be a quantity like 250,000 euros. It will be a set of possibilities, each with its own probability.
+
+Imagine you are making up names for the characters in a story. You type an a and hesitate between continuing with n, with l, or stopping right there. If your list of examples contains Ana, Anna, Alba, and Alan, the first two continuations feel familiar. We can build a program that finds those regularities and uses them to propose new strings.
+
+The program will know nothing about stories, nor will it understand what a name is. Its task will be much more concrete: look at consecutive letters, count how often they appear, and turn those counts into a prediction rule. The advantage of starting this way is that every decision fits in a table we can check by hand.
+
+Can a program learn to invent names with no help other than counting which letter follows each letter?
+
+We will always work with the same small collection. First we will count; then we will interpret probabilities; finally we will generate and evaluate. You do not need to remember the derivatives from the previous chapter: in this model we can learn directly by counting.
+
+By the end you should be able to explain why predicting and generating are different operations, calculate the probability of a continuation, and compare a learned model with one that spreads its probabilities evenly. The hands-on program uses only standard Python and runs on a CPU.
+
+A Collection That Fits on One Page
+
+What Texts the Model Will See
+
+Our training collection contains four strings written in lowercase: ana, anna, alba, and alan. They are teaching examples chosen to make the calculations visible, not a representative sample of real names. We will not use capital letters, accents, or spaces in this experiment.
+
+From the start, we will set aside two other strings, lana and bala, for evaluation. We will call them the held-out set. We are not claiming that all these strings are common names: what interests us is measuring how letters continue. The two held-out strings will not enter the counts, and we will decide every setting before seeing how they score.
+
+The letters present in the training data are a, b, l, and n. This set is our character vocabulary. In this chapter each letter will be a unit of prediction. Such a unit can be called a token; it does not have to be a word. In Chapter 5 we will study other ways of splitting text.
+
+We also need to know where a string begins and where it ends. We will use ^ for the start and \ for the end. They are control marks: they are not part of the name shown to the user. The start serves as context, but it is never generated. The possible outputs are the four letters and the end: five options in total.
+
+Turning a Name into Small Questions
+
+When we write ana with its marks, we get ana\. Now we can walk through it in pairs:
+
+^→a a→n n→a a→\ center
+
+The first pair asks which letter starts the string. The second asks what follows an a. The last one asks whether we should stop after an a. A three-letter name produces four questions because we also learn to stop.
+
+Each pair of consecutive units is a bigram. Our model will look only at the immediately preceding character. When predicting after an, it will look at the n; when predicting after alan, it will also look at the n. The earlier history will have no influence on that decision.
+
+It is worth pausing here: bigram does not mean that the model remembers the last two letters to predict a third. The pair is made up of a one-letter context and the output that follows it. If we widened the context to two letters, we would be counting groups of three units.
+
+What We Learn by Counting
+
+We go through the four examples separately, including the start and the end of each one. We do not join the end of one name to the beginning of the next. Table summarizes all the pairs observed.
+
+We can rebuild the a row without trusting the program. In ana, one a is followed by n and the other by the end. The same happens in anna. In alba, we find a and a. In alan, we find a and a. Adding up: two continuations with l, three with n, and three ends.
+
+The total of this row is eight, even though there are only four names. We count occurrences of contexts, not distinct names. The same letter can contribute several times within one string. In the whole table there are 19 transitions: the 15 letters of the four names plus their four ends.
+
+In the house model we learned two parameters through successive corrections. Here, what the model learns is summed up in the counts and in the probabilities we will derive from them. Not every model requires gradient descent. In the next chapter we will obtain this same table by correcting numbers with gradient descent; since we will already know the answer, we will be able to check whether the procedure works.
+
+From Counting to Sharing Out Probabilities
+
+A Bag of Continuations
+
+Imagine that the a row is a bag with eight slips of paper. Two say l, three say n, and three say “end.” If we draw one at random, the probability of getting n is three out of eight. We are not saying that the next letter will necessarily be n: we are giving it a share of the whole.
+
+We will write that idea like this:
+
+The vertical bar is read “given that.” So the expression means “the probability that an n comes out, given that the previous character is an a.” The value is equivalent to 37.5%.
+
+The denominator is eight, the total of the row, and not 19, the total of the collection. We already know that we are after an a; we compare only the continuations observed in that situation. This detail is what distinguishes a conditional probability from an overall frequency.
+
+To avoid writing a different rule for each letter, we call C(c,s) the number of times the output s follows the context c. Then:
+
+The sum in the denominator runs over the five possible outputs of a row. If we take c=a and s=n, we recover the calculation of three out of eight. The formula is the same operation we would carry out with the slips.
+
+What a Complete Distribution Tells Us
+
+After an a, the probabilities are zero for a and b, two eighths for l, three eighths for n, and three eighths for stopping. They are all non-negative and add up to one. These two properties must hold in every row of a probability table.
+
+It is not a good idea to reduce the model to its most likely option. Here there is a tie between n and the end. Moreover, l is still a valid continuation with a sizable probability. The model produces a distribution; the procedure we use to choose an output will determine which string we see.
+
+Unseen Does Not Mean Impossible
+
+All the training examples start with a. If we use only their frequencies, the probability of starting with l is zero. That is why lana, which we have held out, receives probability zero from its very first letter. The problem is not that the string contains unknown letters: all of them were in the vocabulary. The problem is a combination that was never observed.
+
+In such a small collection, declaring every missing combination impossible is far too drastic. A simple solution is to add one imaginary slip of each output to each bag. This is called additive smoothing. We do not add real names to the training data; we change the way we estimate the probabilities.
+
+In the a row we go from eight slips to thirteen. The three that said n become four, and their probability becomes 4/13, approximately 0.308. One slip for a and another for b also appear. Now no output has probability zero. Figure compares the a row before and after adding the slips: a and b go from zero to 1/13, and the other outputs give up a little.
+
+If we call the number we add to each cell and K the number of outputs, the general rule is:
+
+In our experiment we set =1 and K=5. We need to add five to the denominator because we have added one to each of the five cells. If we increased only the numerator, the probabilities would no longer add up to one.
+
+In the start row, the probabilities are now 5/9 for a and 1/9 for every other output, including the end. The model can generate an empty string: drawing the end as its first decision. This is an explicit consequence of smoothing all the outputs. In this chapter's program we will show it as an empty string, without hiding it or drawing again until we get something pretty.
+
+Smoothing has a cost. It lowers the confidence in very frequent transitions in order to share probability among others. A very large would bring every row close to the uniform distribution. With =0 we recover the unsmoothed proportions. Here we choose one before evaluating; we will not tune it to artificially improve the held-out result.
+
+Smoothing does not solve unknown letters either. If we wanted to evaluate rosa, we would have no rows or columns for the letters r, o, and s. The program rejects that case. In Chapter 5 we will see how to read any text by working with bytes instead of letters.
+
+Generating Means Repeating a Decision
+
+One Possible Path
+
+We begin in the start row and sample an output according to its probabilities. If a comes out, we write it down and look up the a row. If n then comes out, we write that letter and move to its row. We repeat until we get the end.
+
+One possible path, using the smoothed table, is: center Start 5/9 a 4/13 n 3/9 a 4/13 End. center The text shown would be ana; the control marks are not printed. Another draw may go through different rows, repeat letters, or produce something that does not look like a name. Having learned local regularities does not guarantee a good result as a whole.
+
+This procedure is autoregressive: each generated output is used to decide the next one. The prefix keeps growing, even though our model uses only its last letter. In a model with more context, the distribution could depend on a larger part of the prefix.
+
+Sampling Is Not Always Picking the Maximum
+
+If we always choose the most likely option, we make a greedy choice: the table always produces the same string. We also have to decide what to do with ties. After an a, the n and the end are tied at 4/13. If the tie is broken in favor of the n, we write ananan... and never stop, because after n the most likely thing is to go back to a. In Chapter 8 we will see similar loops in a much larger model.
+
+Sampling, on the other hand, respects the distribution: a less likely option can come out on any particular try. If we repeated a huge number of draws from the same row, we would expect proportions close to its probabilities. Ten generated names are far too few to demand those exact proportions.
+
+We will use a fixed seed so that we can repeat the demonstration. The seed controls the pseudorandom generator; it does not improve the model and it is not learned from the data. Changing it changes the draws and leaves the table untouched.
+
+We will also set a limit of 20 decisions per string. If the end does not appear, the program will mark the result as truncated. That cutoff is a practical measure and must not be confused with the model having decided to stop. Empty and truncated strings will remain visible in what the program prints.
+
+How to Score a Complete String
+
+Following the Path of a Known Text
+
+To evaluate ana we do not need to generate names until it comes out. We go directly through its four transitions and look up the probabilities the model assigns to them. Multiplying them gives the probability of that complete path:
+
+The multiplication corresponds to our bigram model: each factor uses only the previous character. A model with more context would compute each factor taking the whole prefix into account. We have included the end because “writing ana and stopping” is different from “starting with ana and carrying on.”
+
+This value is not a percentage of correct answers. It is the probability the model assigns to one particular string together with its ending. There are many other possible strings among which the probability is shared.
+
+From Probability to Prediction Cost
+
+So far we have counted pairs of letters, calculated probabilities, and multiplied the probabilities along a path. None of those operations needs logarithms. We introduce them now for a new task: expressing the quality of the predictions as a cost that we can add up and average. When we reach the complete program, this operation will appear in the function loss.
+
+The logarithm as the inverse of a power.
+
+Let us start with a familiar number: 10^2=100. The power asks what number we get when we multiply ten by itself. The logarithm asks the inverse question: to what exponent must we raise ten to get one hundred? That is why we write _10(100)=2. In the same way, _10(1000)=3, because 10^3=1000.
+
+Exponents can also be negative: 10^-1=0.1. Therefore, _10(0.1)=-1. This matters to us because probabilities lie between zero and one. For positive values less than one, base-ten logarithms are negative; at one they are zero.
+
+In the program we will use the same operation with another base, a number called e, approximately 2.718. The logarithm in that base is called the natural logarithm and is written . Thus, (p) is the exponent to which we would have to raise e to get p. We do not need to compute that exponent by hand: Python computes it with math.log(p). If we do not give a base, math.log computes the natural logarithm. For 0<p<1 it is also negative, and (1)=0.
+
+Turning a product into a sum.
+
+The property we will take advantage of is that the logarithm of a product equals the sum of the logarithms of its positive factors. We can check it first with powers of ten: 1001000=100,000, and their exponents satisfy 2+3=5. The same property holds for the natural logarithm:
+
+Applied to the path of ana, it lets us replace the logarithm of its four multiplied probabilities with a sum of four contributions. It changes neither the probability of the name nor the model; it changes the way we express its score.
+
+Besides, a long text can have a probability so small that the computer rounds it to zero when it multiplies all its factors. Adding the logarithms directly avoids forming that tiny product. That will be the operation in the code: look up each probability, compute its logarithm, and accumulate it.
+
+A small cost for a favorable prediction.
+
+We want an observed output to receive a small cost when the model had assigned it a lot of probability. Since the logarithms of probabilities are negative or zero, we change their sign. The cost of a transition will be -(p).
+
+For example, if the model assigns probability p=1 to the observed output, its cost is zero. If it assigns p=0.5, the cost is approximately 0.693; if it assigns only p=0.1, the cost rises to 2.303. The actual output is thus penalized more heavily the less likely the model considered it. We have not chosen the most likely letter or made a draw: we are scoring the letter that appears in the text being evaluated. Figure shows the cost for all possible probabilities.
+
+We can check these three cases with a very short standalone program:
+
+import math gives access to the logarithm function. The loop goes through the three probabilities; math.log(p) computes their natural logarithm and the minus sign turns it into the cost. round(cost, 3) rounds to three decimal places just to display the result. We will see the costs 0.0, 0.693, and 2.303. Python writes the first one as -0.0: it is a signed zero and is worth exactly the same as zero. In the complete program, the values of p will come from the learned table.
+
+To get the mean loss, we add up the costs of the M transitions evaluated and divide by M:
+
+Here p_t is the probability assigned to the output that actually appears in transition t. The probability a model gives to the observed data is called its likelihood; that is why this measure is called the mean negative log-likelihood, or NLL. With natural logarithms we express it in nats per transition. This measure is also known as cross-entropy; we will use it under that name from Chapter 3 on.
+
+For ana, the sum of the four costs is approximately 4.044 and the mean is 1.011. This is the same as taking the negative logarithm of the earlier product and dividing by four. When we evaluate several strings, we will add up all the costs and divide by the total number of transitions, not by the number of names. That way each prediction carries the same weight.
+
+For a probability of exactly zero we treat the cost as infinite; the logarithm of zero is not defined. This explains, in numbers, the problem we ran into when trying to evaluate lana without smoothing: its very first transition was already impossible according to the model. That is why the program will first check whether the probability is zero and return math.inf in that case. It will not call math.log(0), which would raise an error in Python.
+
+A Comparison We Can Interpret
+
+An isolated result such as “loss 1.4” tells us little. We need a simple reference. We will use a uniform model that assigns 1/5 to each output in any context. It has the same vocabulary and the same marks as our model, but it makes no use of the counts.
+
+Each transition then costs -(1/5)= 5, approximately 1.609. Its mean loss will always be that value, on the training data as well as on the held-out set, as long as we evaluate valid strings with this same vocabulary. Table gathers the losses of the three models.
+
+The held-out set contains ten transitions: five from lana and five from bala. Overall, the smoothed model gives more probability to the actual outputs than the uniform one: 1.410 versus 1.609. It does not win on every transition. On the first two held-out transitions, starting with l and starting with b, it assigns 1/9, less than the uniform model's 1/5; on the remaining eight it assigns more.
+
+On the training data, the smoothed model scores 1.114, quite a bit less than on the held-out set. That is to be expected: it counted exactly those transitions. Without smoothing, the counts score 0.748 on the training data, even better. For these 19 transitions, no model that looks only at the previous letter can do better: none of them can give more probability to what it has seen. On the held-out set, however, the unsmoothed loss is infinite. Smoothing gives up part of the fit to what has been seen so as not to rule out what has not.
+
+This experiment does not demonstrate a general ability with Spanish. The collection is tiny and was built to explain the mechanism. With only two evaluation strings, we cannot even attribute a small difference to a robust effect. The value of the result is that we can check where it comes from and what it means.
+
+Separating training from evaluation is still necessary. If we add lana and bala to the counts, they no longer measure how the model behaves on held-out strings. If we try many configurations and pick the one that works best here, we will have used the held-out set to decide; for a final evaluation we would need another untouched set. In Chapter 7 we will organize this idea with three datasets.
+
+Besides the score, it is worth reading the samples without picking only the prettiest ones. With seed 7, the program generates these ten: center ablanbananabbnall, bb, a, abalnannblaallbanlbn (truncated), lanl, lb, annanannn, a, blb, and an empty string. center There is one empty string, one truncated string, and none repeats a training name. Four start with b or l, even though all the training names start with a. That is the price of smoothing: in the start row it spreads 4/9, almost half of the probability, among outputs never seen. And a string that was not in the original list does not show understanding either: it comes from recombining local transitions.
+
+What Is Missing to Reach a Larger Language Model
+
+Our model already distributes probability among possible next symbols and generates a sequence through successive decisions. That is the mechanism we wanted to make visible. However, its context is limited to one letter and its knowledge consists of a very small table.
+
+After an and after alan it uses exactly the same row. It cannot tell apart situations in which the earlier prefix matters. Widening the context makes it possible to tell them apart, but it also increases the number of possible combinations and makes the counts for each one scarcer.
+
+We will need another way of obtaining the probabilities: adjusting numbers instead of counting cases. In Chapter 3 we will obtain this same table that way: a network will adjust scores with gradient descent, like the line in Chapter 1, and we will check that it reaches the proportions we have counted. In Chapter 4, a network will look at the last three letters.
+
+For now, the destination is concrete: we can follow a name from beginning to end, explain each probability, and measure how much the model favors an observed text. A convincing sample on its own is no substitute for that check.
+
+tcolorbox Common Pitfalls itemize[leftmargin=*,itemsep=2pt] Predicting is not generating. Predicting gives a probability distribution for the next output; generating picks an output from that distribution, adds it to the text, and repeats. Probability is computed within the row. P(n) divides by the eight occurrences of a, not by the 19 transitions of the collection. “Bigram” does not mean looking at two letters. The pair is one context letter and the output that follows it. Smoothing does not add data. It shares probability among what has not been seen, but it does not create new letters: rosa is still unreadable. The seed is not part of the model. It changes the samples, not the table or the losses. The NLL is not a percentage of correct answers. It measures how much probability the model gave to what actually appeared; the lower, the better. itemize tcolorbox
+
+The Program, Block by Block
+
+The file practice.py brings everything above together in about ninety lines of standard Python. We will go through it in six blocks; the line numbers are those of the file.
+
+12
+
+The Tools and the Data
+
+The three imports come from the standard library: Counter counts occurrences, math provides the logarithm and infinity, and random makes the random draws. The constants in capitals hold the chapter's data: the four training names, the two held-out ones, and the two marks.
+
+LETTERS is obtained from the names themselves: join joins them into a single string, set removes the repeated letters, and sorted puts them in order, so that the columns always come out in the same order. OUTPUTS adds the end to the letters and CONTEXTS adds the start; the comma in (END,) indicates a one-element tuple. There is no end row, because once the string has ended there is nothing left to predict, and there is no start column, because that mark is never generated.
+
+12
+
+Splitting the Pairs and Counting Them
+
+pairs adds the marks and walks through the name in pairs: zip matches the string with itself shifted by one position, so that for ana it produces the four transitions of Section. count creates an empty Counter for each context, that is, one row of the table, and adds one to the cell of each pair: counts[previous][following] += 1. The result is Table. If a name is empty or has letters outside the vocabulary, raise ValueError stops the program with a message, instead of producing misleading counts.
+
+12
+
+Turning Each Row into Probabilities
+
+probabilities applies the smoothing formula to each row: it adds up the counts in the row, adds alpha for each of the five outputs, and divides. With alpha=1, the total in the a row is 8+5=13 and table[ a][ n] is 4/13. With alpha=0 we get the unsmoothed proportions. A negative alpha, or an empty row without smoothing, raises an explicit error. The function creates a new table and does not modify the counts, so we can obtain several tables from the same data.
+
+12
+
+Evaluating the Transitions of a Known Text
+
+loss goes through the transitions of the texts we give it, whether training or held-out, looks up the probability of the output that actually appears, and stores its cost - p. It does not sample anything: the output is already given by the text. If a probability is zero, it returns math.inf without calling math.log(0). At the end it divides the sum of the costs by the number of transitions, not by the number of names: on the held-out set, by ten. For example, the first transition of lana has p=1/9 and contributes a cost of about 2.197.
+
+12
+
+Sampling a Letter and Knowing When to Stop
+
+generate is the autoregressive walk: it begins at the start and samples an output with rng.choices, using the current row as weights, in the same order as OUTPUTS. If a letter comes out, it adds it and makes it the new context. If the end comes out, it returns the text and True. If it uses up the twenty decisions, it returns what it has accumulated and False: the string is truncated, not finished. The variable \ indicates that we do not use the loop counter.
+
+Evaluating and generating look up the same table, but they answer different questions: loss scores a given text; generate invents one.
+
+12
+
+The Complete Experiment
+
+run puts the experiment together. It counts only the training data, builds the smoothed table and the uniform model, which gives 1/5 to each output in any context, prints the counts, and computes the losses in Table. %.6f shows six decimal places; it affects only what is printed. Then it creates the unsmoothed table with alpha=0 and evaluates it on both sets.
+
+Finally, it generates ten samples with a generator seeded with 7. The generator is created only once, outside the loop, so that each sample continues the sequence of draws; if it were created inside, the ten samples would be identical. repr shows the text in quotes, so that an empty string appears as . The last two lines start the experiment only when the file is run as a program; if another file imports it to use its functions, the experiment does not start.
+
+To run it, open the chapter's notebook in Colab (the link is at the end of the chapter): it contains this same program split into cells, and there is nothing to install. It takes less than a second and prints the counts in Table, the losses in Table, and the ten samples we have already discussed. In the notebook you can run it piece by piece and try things out.
+
+Before changing the code, write down what you expect to happen. Changing the seed should alter the samples, but not the losses. Removing the smoothing should bring back the zeros. Adding a string to the training data should change the counts, and therefore the model. Predicting these effects helps you tell apart data, configuration, and generation.
+
+Exercises
+
+enumerate[leftmargin=*,itemsep=6pt] Write the five transitions of alba, including the start and the end. Explain why there is one more transition than there are letters. Apply the greedy choice to the smoothed table, starting at the start and breaking ties in favor of the output that comes first in the order a, b, l, n, end. What string do you get? Does it end? Calculate, without smoothing, the probability of l after a and of a after l. Explain why they do not have to be equal. With =1, write the five probabilities after n and check their sum. Calculate the smoothed probability of generating an empty string. Should the program hide it in order to evaluate the samples honestly? Follow the complete path of anna with the smoothed table: calculate its probability and its mean NLL, including the end. With the smoothed table, calculate by hand the probability of the path of lana. Identify the transition that receives probability zero without smoothing. Explain why the uniform model has mean loss 5$ on any valid string. Would it change if we used base-two logarithms?
+
+Change only the seed. Compare samples and losses, and explain which part of the procedure has changed.
+
+Explain why we cannot evaluate rosa with this table. Distinguish an unknown letter from an unobserved pair.
+
+Compare the context used after an and after alan. What information would a model need to tell them apart? (Chapter 4 will do it.)
+
+Try alpha=0.1 and alpha=10, in the notebook or by changing line 72 of the program. Describe what happens to the a row and to the training loss. Do not use the held-out set to decide which one is better.
+
+Write a five-line conclusion about the comparison with the uniform model: mention the held-out set, the number of transitions, the limitations of the data, and the difference between the score and the quality of the samples.
+
+Suggested time: about five hours. A good way to divide them is to first rebuild on paper the table of counts and the smoothed a row, then follow the path of ana by hand with its costs, run the program, and finally solve the exercises and try other seeds and other values of alpha in the notebook.
+
+Reflection
+
+Why does a generated string that did not appear in the data not show that the model understands what a name is?
+
+What do we gain and what do we lose by smoothing the probabilities?
+
+Why is widening the context of the table not enough to get a better model?
+
+Conclusion
+
+We have built a complete language model from a table of counts. With it we can generate strings letter by letter, score a known text by means of the NLL, and compare the result with a uniform model. Along the way, pieces have appeared that we will use in the rest of the book: conditional probability, smoothing, autoregressive generation by sampling, the NLL as a measure, the uniform model as a reference, and the separation between the training data and the held-out data.
+
+The idea of generating names from bigram counts comes from the first lesson of makemore, by Andrej Karpathy, part of the series Neural Networks: Zero to Hero. The makemore project then goes on to increasingly larger character models. The minimal collection, the explanations, the exercises, and the code in this chapter are my own work.
+
+In the next chapter we will keep the same question, but we will let a network learn the probabilities by correcting its parameters, as we did with the line in Chapter 1.
+
+A Network That Learns to Count
+
+A Question to Start
+
+In chapter 2 we built a name generator by counting. We went through ana, anna, alba, and alan, wrote down which letter followed each letter, and turned each row of counts into probabilities. The result was a small table that we could check by hand.
+
+Counting works very well when the context is a single letter. But in chapter 2 we also saw its limit: after an and after alan the table looks up the same row, because it only looks at the n. To tell those cases apart we would need to look at more letters. With three letters of context and a full alphabet we would have some twenty thousand possible rows, and most of them would never appear in our examples.
+
+We will need another way to obtain the probabilities: one that learns by adjusting numbers, like the line in chapter 1, instead of counting cases. Before jumping into a large model, we will run a test on a problem whose answer we already know.
+
+Can a network, correcting numbers with gradient descent, discover on its own the table we counted by hand?
+
+If the answer is yes, we will have a procedure we can trust and later apply to situations where counting is no longer possible. We will use the same four names, the same two held-out strings, lana and bala, and the same loss as in chapter 2. The only thing that changes is how the probabilities are obtained.
+
+Scores Instead of Counts
+
+A Table of Adjustable Numbers
+
+For now, our network will be very simple: a table with one row for each context (start, a, b, l, and n) and one column for each possible output (a, b, l, n, and end). In total, 5×5=25 numbers. But this time they do not hold counts: they hold scores.
+
+A score expresses how much the network favors an output in a context. It can be any number: positive, negative, or zero. The larger it is, the more likely that output will be. These scores are also called logits, and they are the parameters the network will learn.
+
+We will start with all 25 scores set to zero. The network knows nothing yet: it does not favor any output over another.
+
+Why Not Adjust the Probabilities Directly?
+
+We could think of storing probabilities and correcting them little by little. The problem is that probabilities follow strict rules: they cannot be negative, and each row must add up to one. An arbitrary correction could break those rules, for example by subtracting a little from a probability that was already zero.
+
+Scores have no such restrictions. We can raise or lower them freely and, in a later step, turn each row into a valid distribution. That conversion is always the same and is not learned: we will call it softmax.
+
+Softmax: From Scores to Probabilities
+
+Softmax works in two steps. First it raises the number e≈2.718, the base of the natural logarithm we met in chapter 2, to the power of each score. This makes all of them positive, and a larger score gives a larger number. Then it divides each result by the sum of the row, so that the distribution adds up to one.
+
+Let us look at an example. Suppose the row of a had the scores [0, 0, 1, 2, 2] for a, b, l, n, and end. Table follows the two steps.
+
+The outputs with a score of 2 take most of the distribution. Those with a score of 0 keep some probability: softmax never gives exactly zero, because an exponential is always positive. This property will be important later on.
+
+In symbols, if zj is the score of output j, the probability that softmax assigns to it is
+
+The formula says exactly what we did in the table: the exponential on top, the sum of all the exponentials below.
+
+What happens with our newly created network, with all its scores at zero? Each exponential equals e0=1, the sum of the row is 5, and each output receives 1/5=0.2. The network starts out as the uniform model of chapter 2. It knows nothing, and its distribution shows it. Figure summarizes the path of a prediction, which we will follow throughout the rest of the chapter.
+
+The Same Loss as in Chapter 2
+
+To measure how well the network predicts, we use the cost we already know: for each training transition, the negative logarithm of the probability that the network gave to the output that actually appeared. Then we take the mean over the 19 transitions. This is the mean NLL of chapter 2, also called cross-entropy.
+
+At the start, all the probabilities are 0.2, so the loss is -ln 0.2=ln 5≈1.609, the loss of the uniform model.
+
+How low can it go? The unsmoothed count table of chapter 2 achieves a training loss of 0.748. For a model that only looks at the previous letter, there is no way to do better with this data: the counted proportions are precisely the ones that give the most probability to what was observed. That is why this number will be our floor. If the network learns well, its loss should approach 0.748.
+
+How to Correct a Score
+
+The Observed-Output Rule
+
+In chapter 1 we needed the derivative of the loss to know which way to move the weight and the bias. The same thing happens here with each score. Fortunately, for the softmax cost the derivative has a very simple form. For a single transition, the derivative of the loss with respect to each score in the row, which we will call its correction, is:
+
+As in chapter 1, we will subtract the correction multiplied by the learning rate. Read in words, the rule says:
+
+The output that appeared receives p-1, a negative number. When we subtract it, its score goes up.
+
+The other outputs receive their probability p, a positive number. When we subtract it, their scores go down, and the more probability they were taking, the more they go down.
+
+Take the first transition in ana whose context is a: the observed output is n. With the newly created network, all the probabilities are 0.2. The corrections are [0.2, 0.2, 0.2, -0.8, 0.2]. The n gets a push upward, and the rest get a small push downward.
+
+Notice what happens if the network was already fairly accurate. If it had given 0.9 to the n, its correction would be only 0.9-1=-0.1. The network learns more from what surprises it and little from what it already predicted well.
+
+Checking It Without Formulas
+
+There is no need to take the rule on faith. In chapter 1 we checked the direction of a derivative by trying a slightly larger weight. Let us do the same. With all the scores at zero, the cost of the transition a→n is ln 5≈1.60944. If we raise only the score of n to 0.01, the cost drops to 1.60145. The difference, -0.00799, is almost exactly -0.8×0.01: the correction -0.8 correctly predicts how much the cost changes.
+
+Adding Up All the Transitions of a Row
+
+In training we do not correct with a single transition, but with the mean over all 19. The only transitions that affect the row of a are those that have a as their context. In chapter 2 we saw that there are eight: three are followed by n, two by l, and three by the end.
+
+Each of those eight contributes 0.2 to every output and subtracts 1 from its own. Adding them up:
+
+Dividing by the 19 transitions, we get [0.084, 0.084, -0.021, -0.074, -0.074].
+
+We will use a learning rate of 5. It is much larger than the one in chapter 1, but we already saw there that the right rate depends on the problem: here the corrections are small because they are divided by 19. After the first step, the row of a has the scores [-0.42, -0.42, 0.11, 0.37, 0.37], and its probabilities, rounded, are [0.12, 0.12, 0.21, 0.27, 0.27]. After a single step, n and end already stand out, l rises a little, and a and b lose ground. It is the same direction the counts pointed to.
+
+When Does It Stop Correcting?
+
+The table above hides an important idea. The total correction of a row is always computed the same way:
+
+(times the context appears × predicted probability) - (times each output was observed).
+
+The correction becomes exactly zero when the two parts match, that is, when the predicted probability for each output equals the proportion with which we observed it. In the row of a: 8× pn=3, that is, pn=3/8.
+
+Gradient descent only stops when the network predicts the same proportions we counted in chapter 2. We have not told the network to count. We have only asked it to reduce the loss, and the way to reduce it is to reproduce the counts.
+
+Training and Comparing with the Table
+
+We repeat the correction 1000 times, always with the 19 training transitions. Table shows how the loss goes down.
+
+As Figure shows, the loss drops quickly at first and then creeps very slowly toward the floor of 0.7475. Figure compares the learned probabilities with the ones we counted in chapter 2: they are practically the same.
+
+There is a detail that does not show with three decimal places. Where the counted table has a zero, the network has a tiny number: after the start, for example, the probability of l is 0.00019. Softmax never reaches zero, so the network keeps lowering those scores at every step and never stops. That is why the loss approaches the floor without touching it.
+
+An Overconfident Network
+
+What Happens with the Held-Out Set
+
+Let us recall what happened in chapter 2 with the held-out set. The unsmoothed table gave zero probability to starting with l or with b, and that is why lana and bala received an infinite cost. The network without a brake never reaches zero, but it gets very close. The more steps we take, the more certain it becomes that every name starts with a, and the higher the held-out cost.
+
+Figure shows this clearly. Without a brake, the held-out loss drops to 1.475 at the second step and then rises: 1.902 after 100 steps and 2.355 after 1000. More training is not always better. The network improves on what it has seen and gets worse on what it has not seen. We will meet this phenomenon again in chapter 4.
+
+A Brake for the Scores
+
+In chapter 2 the solution was smoothing: adding one imaginary slip for each output so that no probability was zero. With the network we can do something similar. At each step, before applying the correction, we move each score a little closer to zero:
+
+Here η is the learning rate and λ is the brake. With η=5 and λ=0.05, each step keeps 75% of each score before correcting it. If a score is 2 and its correction is zero, it becomes 1.5.
+
+Why does this help? Because scores close to zero give distributions close to uniform. The brake keeps the network from becoming extremely confident: a score only stays high if the corrections push it up again and again. It is the same idea as smoothing, which also brought the rows closer to the uniform distribution. In the language of machine learning, this brake is a form of regularization, and it is known as weight decay.
+
+With this brake, the row of a learned by the network looks like this:
+
+They are very similar, though not identical: the brake and smoothing have a similar effect, but they are not the same operation. A stronger brake would bring the network closer to uniform, and a weaker one would leave it more confident. Choosing its value well is a decision that, as we saw in chapter 1, requires validation data.
+
+All the Results Together
+
+Table summarizes the chapter. The network without a brake behaves like the unsmoothed table: almost the same training loss and a poor result on the held-out set. The network with a brake behaves like the smoothed table: worse than the network without a brake on training, but much better on the held-out set. Remember that the held-out set has only ten transitions: it helps us understand the mechanism, not measure a general ability.
+
+What We Have Gained
+
+If the network ends up learning the same table we used to count, why do we want it? This is the key question of the chapter.
+
+Counting only works when we can list all the contexts and have enough examples of each one. The procedure in this chapter does not depend on that. It needs only three pieces: some scores, softmax to turn them into probabilities, and the loss to correct them. In this chapter the scores were stored in a table. In chapter 4 a network will compute them from the last three letters, combining learned representations of each one. The output, the loss, and the rule for correcting the scores will be exactly the same.
+
+That is why it was worth starting here: with a known answer, we have been able to check that the procedure works before applying it where we will not be able to check it by hand.
+
+Since the network with a brake has learned almost the same table as the smoothing of chapter 2, its samples look very similar. With the same seed, the program generates these ten names:
+
+ablanbananabbnall, an, a, abalnannblaallbanba, banl, la, annanannl, a, anbn, ana.
+
+The first one matches the first one of chapter 2 letter by letter. Looking only at the last letter, we cannot do much more; to improve the samples we need more context, and that is what we will do in chapter 4.
+
+Common Pitfalls
+
+A score is not a probability. The network adjusts scores; softmax turns them into probabilities.
+
+A correction is not an update. The correction says which way to move each score; the learning rate decides how far.
+
+This network is not better than the table. It learns the same table. Its value lies in the procedure, which will be useful when counting is not possible.
+
+Brake and smoothing are alike, but not the same. Both prevent excessive confidence; their results are close, not identical.
+
+A sample that looks like a name does not prove understanding. The network combines transitions from one letter to the next, just like the table.
+
+The Program, Block by Block
+
+The complete program is in practice.py. As in chapters 1 and 2, it uses only the Python standard library and runs on any computer, without a graphics card. We will go through it in five blocks.
+
+12
+
+The Data
+
+The names, the held-out set, and the start and end marks are those of chapter 2. The two tuples CONTEXTS and OUTPUTS fix the order of the rows and columns of the score table. The last line of constants gathers the decisions of the experiment: 1000 steps, a learning rate of 5, and a brake of 0.05.
+
+The function transitions turns the names into the list of (context, output) pairs. For ana it produces ^→a, a→n, n→a, and a→end. With the four names we get the 19 training transitions; with the held-out set, another ten.
+
+12
+
+From Scores to Loss
+
+softmax performs the two steps of Table: it computes the exponentials and divides them by their sum. probabilities applies softmax to each row and returns a probability table, with one row per context, like the one in chapter 2.
+
+loss receives a probability table and a list of transitions. For each transition it looks up the probability of the observed output and accumulates its cost -ln p. If any probability is zero, the cost is infinite, as happened in chapter 2 with the unsmoothed table. Because it receives probabilities, the same function can evaluate both the network and the counted tables.
+
+12
+
+Learning
+
+corrections applies the observed-output rule. It starts with a table of zeros and, for each transition, adds pj to every output in its row and subtracts 1 from the observed one. It divides by the number of transitions because the loss is a mean. This is exactly the calculation we did by hand for the row of a.
+
+step performs one update: it computes the corrections with the current scores and then applies the brake formula to each score. With brake=0, the factor 1 - rate * brake equals one, and what remains is the gradient descent of chapter 1.
+
+train creates the score table filled with zeros, that is, the uniform model. Then it repeats step and records the training loss at the start and at steps 1, 10, 100, and 1000: these are the numbers in Table. The held-out set plays no part in training.
+
+12
+
+Comparing and Generating
+
+by_counting rebuilds the tables of chapter 2 from the same transitions: with alpha=0, the counted proportions; with alpha=1, the smoothed table. We use them as a reference.
+
+generate works just as in chapter 2. It begins in the start context, samples an output with the probabilities of the current row, and repeats until the end comes out or twenty decisions have been made. It receives a probability table, so it does not matter whether the probabilities come from counting or from training.
+
+12
+
+The Complete Experiment
+
+run trains two networks, one without a brake and one with a brake, and gathers five models in a dictionary: the uniform model, the two counted tables, and the two networks. For each one it prints the training loss and the held-out loss, which are the numbers in Table. Then it shows the row of a of four models and generates ten names with the network with a brake, using seed 7.
+
+To run it, open the chapter's notebook in Colab (the link is at the end of the chapter): it contains this same program split into cells, and there is nothing to install. It takes less than a second. In the notebook you can run it piece by piece and experiment: change the learning rate, the number of steps, or the brake, and see what happens.
+
+Exercises
+
+With a row of scores [0, 0, 0, 0, 0], compute the five probabilities. Which model of chapter 2 does it correspond to?
+
+Compute the softmax of [0, 0, 1, 2, 2] without looking at Table. Check that the probabilities add up to one.
+
+Add 3 to all the scores of the previous exercise and compute softmax again. What do you notice? Try to explain why this happens.
+
+With all the scores at zero, write down the five corrections for the transition a→n. Which one is negative, and what will happen to its score?
+
+Repeat the previous exercise if the network already gave 0.9 to n and 0.025 to each of the other outputs. What changes?
+
+Reconstruct the total correction of the row of a in the first step, before and after dividing by 19.
+
+Check with the row of n that the correction becomes zero when the probabilities match the counted proportions.
+
+Why does the network without a brake never give a probability of exactly zero to starting with l? What consequence does this have for lana?
+
+With a learning rate of 5 and a brake of 0.05, what value will a score of 2 have after one step if its correction is zero? And after many steps, if the correction stayed at zero?
+
+Run the program with a brake of 0.01 and of 0.1. Describe what happens to the row of a and to the training loss. Do not use the held-out set to decide which one is better.
+
+Compare the network with a brake and the smoothed table in Table. How are they alike? Are they the same model?
+
+In chapter 4 the network will look at three letters. Which pieces of this chapter will be kept, and which one will change?
+
+Suggested time: about four hours. A good way to divide them is to first work out softmax and the first correction by hand, then run the program, and finally solve the exercises and experiment with the brake in the notebook.
+
+Reflection
+
+If the network ends up learning the same table we counted, what is the advantage of learning instead of counting?
+
+Why can training for more steps worsen the result on data the model has not seen?
+
+How are smoothing and the brake alike? Which of the two seems easier to apply to a large network?
+
+Conclusion
+
+We have verified that a network that only adjusts scores, without anyone asking it to count, ends up reproducing the count table of chapter 2: gradient descent stops just when the probabilities match the observed proportions. Along the way, the pieces we will use in the rest of the book have appeared: scores, softmax, cross-entropy as the loss, the observed-output correction rule, and a brake that prevents excessive confidence.
+
+The idea of training a bigram model with gradient descent and checking that it recovers the counts comes from the first lesson of makemore, by Andrej Karpathy, part of the Neural Networks: Zero to Hero series. There it is done with PyTorch; here it has been rewritten in standard Python so that every correction can be followed by hand. The collection of names, the explanations, the exercises, and the code are original work.
+
+In chapter 4 we will keep everything we have built here, but the scores will no longer be stored in a table: a neural network will compute them from the last three letters.
+
+Building a Network to Continue a Name
+
+The Task We Are Going to Solve
+
+Imagine that we want to write a name and so far we have only written an a. We could continue with n, as in Ana, or with l, as in Alba. We want a program to suggest continuations, using the names we have taught it.
+
+In chapter 2 we already solved a first version of this problem. We counted which letter followed each letter and stored the results in a table. In chapter 3 we got a network to learn that same table on its own, correcting scores with gradient descent. In both cases, after an a we always looked up the same row: the program did not look at what came before.
+
+This limitation becomes clear if we compare an and alan. Both prefixes end in n, but we are not in the same situation: after an, another letter may still come; after alan, in our collection, the name ends. If we only look at the last letter, we cannot tell those two cases apart.
+
+Now we will build a program that looks at the last three positions. A table with one row for each combination of three symbols would grow very quickly, and almost all of its rows would be empty. That is why the scores will no longer be stored in a table: we will compute them through operations with numbers that the program can adjust as it learns. That set of operations will be our neural network.
+
+We will follow a single prediction before talking about many at once. We choose the name ana and stop just after its first a. The program receives what has already been written; the training example tells us that the next letter is n. We will follow that prediction all the way from the input to the loss.
+
+The path will be: represent what has been written with numbers, combine those numbers, assign probabilities to the continuations, and check how much we favor the expected letter. Only afterward will we explain how the parameters are corrected and how the operation is repeated over the whole collection.
+
+The chapter's new concepts will appear along that path. You do not need to know in advance what an embedding, a tensor or an MLP is. We will name each tool once we know what we need it for.
+
+Separating What the Model Sees from What It Must Predict
+
+Three Slots to Remember What Has Been Written
+
+Our program will have three memory slots. They will hold the last three positions of the available text. When we have only written an a, two earlier letters are still missing. We will fill those slots with a start mark, which we will write as ^. It is not a letter of the name: it means that there was no text in that position yet.
+
+The input we are studying is, therefore:
+
+Start expected letter is n.
+
+We will call those three slots the context and the expected letter the target. The context is what the network receives; the target is used to correct the network after it has answered. The expected n must not appear inside the input for this step, because then we would be giving it the answer.
+
+When we move forward one position, we remove the leftmost slot and add the new letter on the right. If we take in the n of ana, the context goes from (start, start, a) to (start, a, n). Now the expected letter will be the last a.
+
+One Name Produces Several Questions
+
+We can go through the whole of ana in this way. Table shows the four questions we will use to learn from that name.
+
+We also learn to stop. To do so, we add a special output, which means end. We will not write that symbol in the name shown to the user. A three-letter name produces four questions: three about letters and one about ending.
+
+We repeat the procedure separately for ana, anna, alba and alan. Those four names form the training set: their 19 questions are used to correct the parameters.
+
+The strings lana and bala form the held-out set, as in chapters 2 and 3. Their ten questions let us check how the model responds to cases it has not used for learning. In this program we look at their loss once the 400 steps are over, and we do not use it to choose another configuration. Since we do not use it to make decisions, it does not play the role of a validation set; we will see that difference in chapter 7.
+
+For now we stay with a single question: start, start, a; target n. It is worth keeping it in view: the numbers in the next sections always represent that same situation.
+
+Numbering the Letters So We Can Look Them Up
+
+Before preparing an input, we list the symbols that can appear in it. That list is the input vocabulary: the start mark and the letters a, b, l and n. It is not a name, nor a sequence that we are going to give to the network. We can picture it as the index of a card file. We number its symbols so that we can look them up:
+
+center
+
+center
+
+Our context is now written as [0,0,1]. We have not made a prediction, nor have we calculated how much a letter is worth. We have only replaced the names of the symbols with card numbers. The 1 lets us find the card for a; it does not mean that a has a value of one unit.
+
+The answers have their own list: a, b, l, n and end. Their numbers are 0, 1, 2, 3 and 4, in that order. There are two lists because start can appear in the context but is never generated, while end can be generated but we never need to use it again as context.
+
+center
+
+center
+
+That is why our example is stored as input [0,0,1], target 3. Target 3 means “the fourth output in the list,” which is n. There is no arithmetic relationship between those numbers: we do not expect the network to add 0+0+1 to get 3.
+
+In the code we will call the dictionaries that perform these conversions TO and TO. If two identifiers seem to contradict each other, first check which list they belong to. An a is input card 1 and output 0.
+
+Giving Each Letter a Card with Adjustable Numbers
+
+From the Card Number to Its Contents
+
+The identifier lets us look up a letter, but it does not yet give us a representation that the network can adjust. We will add two decimal numbers to each card. Those numbers will be able to change during learning.
+
+To keep the arithmetic readable, during this explanation we will use some values chosen by hand. The start card will contain [0.1; -0.2] and the card for a, [0.7; 0.3]. These are illustrative values: they are neither the initial nor the final values of the program's run. Later on, the program will initialize and learn its own values.
+
+Looking up the cards for the context [0,0,1] gives:
+
+center
+
+center
+
+The pair of numbers of a letter is called an embedding. Here, an embedding is a learned representation, stored in a row. There is no need to attach a human meaning to each component: we are not saying that the first number measures something like “sonority” and the second “length.”
+
+There are five input symbols, and each one has two numbers. The full table contains ten adjustable values. The same card is looked up every time the same letter appears. In our example we look up the start card twice; both positions receive the same values.
+
+What the program learns is the contents of the cards, not their identification numbers. The a will still be input 1 even if its pair of values changes. This difference between a fixed identifier and an adjustable representation is the main idea of this section.
+
+Joining the Three Cards Without Losing the Order
+
+The next operation reads the numbers of the first card, then those of the second and finally those of the third. We get a list of six components:
+
+We call this list x so that we can refer to it in the calculations. The operation is called flattening: three pairs become one list. We do not add or average the numbers.
+
+Order matters. The first two components correspond to the oldest position and the last two to the most recent one. Even though a letter has the same card in every position, the next layer will be able to give different importance to each place in the list.
+
+So far we have looked up the cards and rearranged their numbers: from three symbols to three cards, and from those cards to six numbers. We have not yet decided which letter will come next.
+
+Combining the Six Numbers to Get an Answer
+
+A Unit Computes a Weighted Sum
+
+In chapter 1 we multiplied the area by a weight and added a bias. Now we have six inputs instead of one. A unit of the network assigns a weight to each component, adds up the six products and adds its bias.
+
+To follow a concrete calculation, we choose the weights [2,0,0,0,0,0] and a bias of 0.1. With the list from the previous section, this unit computes:
+
+The result is called u. The zero weights make this illustrative unit ignore five components. This is not a recommendation for initialization: we choose them this way so that the calculation can be checked at a glance. In real training, these weights are initialized in another way and then adjusted.
+
+Our network will have eight units of this kind. They all receive the same list of six numbers, but each one has its own six weights and its own bias. That is why they can give different responses to the same context. We call the set of units that work at this step a layer.
+
+A Curve Transforms the Response of Each Unit
+
+After each sum we will apply a function called tanh, or hyperbolic tangent. First, we care about what it does: it takes a number and transforms it into another one between -1 and 1. In our case it turns 0.3 into approximately 0.2913.
+
+We call the result of this transformation an activation. If the input is zero, tanh returns zero; if it is very positive, the result approaches one; if it is very negative, it approaches minus one. We do not need to work through its formula to use it: Figure and this calculation show its effect.
+
+We introduce the curve because we want something more flexible than a chain of weighted sums. Two layers made only of sums and biases could be merged into a single transformation of that same kind on the six numbers. The curve in between means that, in general, this simplification is no longer possible.
+
+To continue our hand-worked example, we make the first unit produce the activation 0.2913 and the other seven produce zero. We achieve this by giving those other units zero weights and biases. The intermediate layer then delivers [0.2913; 0; 0; 0; 0; 0; 0; 0].
+
+One Score per Possible Output
+
+The last layer receives those eight activations and computes five scores: one for a, one for b, one for l, one for n and one for the end. Each score is another weighted sum with its own bias.
+
+We complete the example by choosing a weight of 2 between the first activation and the score for n. All the other weights and biases of this last layer will be zero. So the score for n is 20.29130.5826, and the other four scores are zero.
+
+These scores are the logits we met in chapter 3: they are not yet probabilities, they can be negative and they do not have to add up to one. The difference is that before we read them directly from a table, and now the network computes them.
+
+We have now walked through a complete network, with numbers chosen to explain the arithmetic. This organization, with an intermediate layer and an output layer, is an MLP, short for multilayer perceptron. In the real program we will keep this organization, but we will learn its weights instead of fixing them by hand.
+
+Turning the Scores into Probabilities
+
+We need a distribution over the five outputs. As in chapter 3, we will use softmax. Let us repeat its two steps with the numbers from our example.
+
+First we raise the number e to each score. Recall that e2.718 is the base of the natural logarithm introduced in chapter 2. We have e^0=1, and e^0.5826 is approximately 1.7907. In this way we obtain positive values for the five outputs.
+
+Then we add up those values and divide each one by the total. Table lets you follow both operations without skipping any arithmetic:
+
+The total of the exponentials is approximately 5.7907. That is why n receives 1.7907/5.79070.3092: a probability of 30.92%. Each of the other outputs receives 1/5.79070.1727. With the unrounded values, the distribution adds up to exactly one.
+
+The letter n is the most likely option in this example, but it is not certain. The model keeps some probability for the other four. During training we will score how much it favors the real letter; when generating, we will be able to sample an output according to this distribution, as in chapter 2.
+
+The general formula abbreviates the two operations we have just done. If z_j is the score of output j, then:
+
+The numerator corresponds to one row of the table; the denominator is the sum of the five exponentials. There is no need to memorize it before understanding the example: it expresses “turn each score into a positive number and share out the total.”
+
+Measuring the Error of This Prediction
+
+Let us go back to the target of our question: the next letter of ana, after its first a, is n. Our hand calculation gives it a probability of approximately 0.3092. We use the same cost as in chapter 2, the negative natural logarithm of the probability of the real output:
+
+The number L measures the cost of this prediction. We do not subtract the expected identifier from the identifier of another letter. Those identifiers are names of slots, and their difference does not measure a language error. What matters to us is the probability that the correct slot received.
+
+With the uniform distribution, n would have received 0.2 and its cost would be approximately 1.6094. For this particular transition, our hand-worked example has a lower cost because it assigns more probability to the observed letter. That does not yet show that it is better on the other names.
+
+We can check the direction of a correction. If we increase only the score for n, from 0.5826 to 0.6826, softmax gives it approximately 0.3310 and the cost goes down. That change improves this example from ana. However, after an a in alba, the real output is l; favoring n even more can hurt that other example.
+
+That is why we will not learn by correcting only the question we have followed. We will compute the cost of the 19 questions and use their mean. The network must find a distribution that takes into account the different targets observed.
+
+In the code, that mean is obtained with F.cross. The function receives the logits and the targets, and internally performs a numerically stable calculation of the cost. We do not have to give it probabilities already transformed with softmax. When generating, we will call softmax, because the random selection needs an explicit distribution.
+
+Correcting the Numbers That Produced the Prediction
+
+Information Travels Backward Through the Network
+
+We have seen how a context produces a loss: the cards supply numbers; the layers combine them; the activation transforms them; and the scores determine the probabilities. Now we want to find out how to change each adjustable number to reduce the mean loss. In chapter 3 the scores were the parameters themselves, and a simple rule was enough: raise the score of the observed output and lower the others. Here each score depends on a chain of weights, biases and embeddings, so we need to know how the correction reaches each one of them.
+
+This is where the derivative from chapter 1 comes back. A derivative tells us how one quantity changes in response to a small change in another. For each weight, bias or embedding component, we look for the derivative of the loss with respect to that value. We call the set of those derivatives the gradient.
+
+The loss does not depend on an embedding directly. It depends on it through the operations that follow. To trace those dependencies we use the chain rule: we combine the derivatives of the intermediate steps.
+
+We can see this without dragging along all the numbers of the network. Consider two operations: first u=2w-3 and then L=u^2. If w=1, we get u=-1 and L=1. The derivative of the second step is 2u=-2 and that of the first is 2. Multiplying them gives -4, the derivative of the loss with respect to w.
+
+In a network, the same kind of calculation is carried out over many dependencies. If a parameter takes part through several routes, its contributions are added together. The procedure is called backpropagation: it starts from the loss and travels backward through the operations that produced it.
+
+PyTorch records those operations and computes the derivatives when we call backward(). This is automatic differentiation. It does not mean that the library decides what our model should be like: we choose the operations, the data and the loss. The library computes the derivatives of that construction.
+
+Computing a Derivative and Updating a Weight Are Separate Steps
+
+Once the gradient has been computed, we apply the update from chapter 1. We subtract from each parameter its derivative multiplied by a learning rate. In the scalar example, with derivative -4 and rate 0.1, the new value is 1-0.1(-4)=1.4. The loss drops from 1 to 0.04.
+
+In our program, backward() computes the derivatives and step() performs the updates. The rate will be 0.1 and we will take 400 steps. We do not have to write a different formula for each weight: the optimizer goes through the parameters registered by the model.
+
+Before computing new derivatives, we must clear the previous ones. PyTorch accumulates them by default; if we left them there, we would be mixing several steps without having decided to. Each round of training will do the following, in this order: enumerate[leftmargin=*] Clear the gradients stored from the previous step. Compute the predictions and the loss with the current parameters. Compute the new gradient through backpropagation. Update the parameters using that gradient. enumerate
+
+The values that change are the weights, the biases and the embedding cards. The identifiers of the letters and the targets do not change. Learning modifies how the network interprets and combines the symbols, not which symbol each identifier represents.
+
+Working with Several Examples Without Mixing Them
+
+Organizing the 19 Training Questions
+
+To train, we process together the 19 questions we have obtained from the four names. This group is the training batch. Each question keeps its own context and its own expected answer. They all use the same network parameters.
+
+We store the contexts in a table called X. Each row is a question, and its three columns contain the identifiers of the context. The table has 19 rows and three columns: that is why its shape is (19, 3). It is a two-dimensional tensor: one dimension runs over the rows and the other over the positions within each row.
+
+The answers are stored in a vector called y. It contains 19 numbers, one per question, in the same order as the rows of X. For example, for the name ana, the first rows and answers are:
+
+center
+
+center
+
+After these come the questions from the other three names, up to the full 19. The second row shows our central example: start, start, a, with target n.
+
+The vector y has a single dimension, of length 19. Python shows its shape as (19,): the parentheses and the comma are how a tuple with a single number is written. That comma does not mean that a dimension is missing. A table with 19 rows and one column would have a different shape, (19, 1); the loss function we use expects the vector of targets.
+
+Following the Dimensions of the Real Program
+
+Each identifier in X is replaced by the two numbers on its card. The result contains 19 questions, three cards per question and two components per card. Its shape is (19, 3, 2): it has three dimensions, with sizes 19, 3 and 2. Here it helps to distinguish the number of dimensions, which is three, from the sizes of those dimensions.
+
+When we flatten the cards of each question, we get 19 rows of six components, (19, 6). The intermediate layer produces eight values per question, and the final layer produces five scores per question. The number 19 does not change because we are still working with the same questions. Table summarizes the journey.
+
+The identifiers are stored as integers, with the type torch.long. The parameters are stored as decimal numbers, because we are going to adjust them through small changes. Selecting a slot and learning its contents are different tasks.
+
+Counting the Learned Parameters
+
+The embedding table has five cards with two numbers each: ten parameters. The first layer has eight units; each one has six weights and one bias: 8(6+1)=56 parameters. The last layer has five outputs; each one combines eight activations and adds a bias: 5(8+1)=45.
+
+In total we will learn 10+56+45=111 numbers. Flattening adds none, and neither does applying tanh. This count lets us check that the program builds the network we have just described.
+
+From the Illustrative Calculation to Real Training
+
+Up to now we have fixed some weights by hand to walk through a prediction without hiding the arithmetic. The program does not use those illustrative values. It creates a network with the same organization, initializes its parameters with seed 42 and corrects them using the 19 training questions.
+
+We will keep fixed the three-position context, the two components per embedding, the eight intermediate units, the rate of 0.1 and the 400 steps. We will not choose them by looking for a good score on lana or bala. We want to observe what this experiment produces, not to pick a favorable result afterward.
+
+To compare with chapter 2, we will also build the smoothed bigram. It will look only at the last position of each context. Both models will use the same questions, the same five possible outputs and the same mean loss. The difference will be how they compute their probabilities.
+
+Reading Table has two parts. On the training set, the network achieves a lower loss than the bigram: it fits the names it has seen better. On the held-out set, the opposite happens. This means that, overall, it assigns less probability to the real outputs of those ten questions.
+
+There is no contradiction. The network has more flexibility to fit the details of only four names. Those details can help it repeat what it has observed and hurt it on other strings. This distinction between improving on the training data and improving beyond them is part of what this chapter teaches.
+
+In addition, some training contexts have several answers. After the first a, the names Ana and Anna call for n; Alba and Alan call for l. The input is the same in all four cases. A network that only receives that input cannot assign probability one to both outputs at the same time: it has to share out the probability.
+
+Our held-out set is small and already appeared in the previous chapters. The comparison helps us understand the mechanism; it does not measure a general ability to generate names. Several decisions also change at once, including the context length. We should not attribute every difference solely to the fact that we are using a neural network.
+
+Generating a Letter and Starting Again
+
+After training, we can ask the model for a name. We start with three start marks. The network computes five logits, softmax turns them into probabilities and we sample an output according to them.
+
+If a comes out, we write it and shift the context to start, start, a. Then we compute another distribution. Now we use the letter we have just generated, not the letter of a training name. We repeat the procedure until the end comes out.
+
+The selected number belongs to the list of outputs. Before feeding it into the next context, we convert it into a letter and look up its input identifier. For example, output 0 means a; that same letter uses input identifier 1. This conversion keeps us from confusing the two lists.
+
+We will use a fixed sampling seed, 7, so that the samples can be repeated. Changing that seed changes the random selections, but not the trained parameters or the loss computed on the fixed texts.
+
+We will set a limit of twenty decisions. If the end does not appear, we will show the result as truncated. If it appears at the very beginning, we will get an empty string. We will not hide those possibilities. Nor will we take a nice-looking sample as proof of understanding: the model is still combining regularities learned from a handful of strings.
+
+Running and Reading the Program
+
+The program needs Python and PyTorch and runs on the CPU, with no graphics card and no downloads of models or data. The easiest way to run it is to open the chapter's notebook in Colab (the link is at the end of the chapter): it contains this same program split into cells, and Colab comes with PyTorch already installed. On your own computer, installing it with pip install torch is enough.
+
+The program shows the shapes, the evolution of the loss, the comparison with bigrams and ten generated samples.
+
+The Program Explained Through the Example
+
+Preparing the Names and the Two Lists of Symbols
+
+This block prepares the data and the names that we will use in the rest of the program. It does not make any prediction yet.
+
+The tools. The first line describes the file. math lets us compute the logarithm of the uniform baseline; time will be used to measure the duration. torch is PyTorch, the library that handles tensors and derivatives. From it we import nn, which contains the layers, and functional, which we give the short name F. That last module contains the loss function.
+
+The data. The two tuples separate the training set and the held-out set. INPUTS lists the five symbols allowed in a context; OUTPUTS lists the five possible answers. These strings are vocabularies, not examples that are given to the network. Their order assigns the identifiers.
+
+enumerate(INPUTS) goes through positions and symbols: first position 0 with start, then 1 with a, and so on. The expression in braces stores the correspondence in a dictionary. So looking up TO returns 1. The second dictionary works the same way with the list of outputs; looking up n returns 3.
+
+The last two lines set the size of the network and of the training. The context has three positions; each card, two components; the intermediate layer, eight units (HIDDEN). There will be 400 updates with rate 0.1 and an initialization with seed 42. These constants describe the real experiment, not the weights chosen by hand to explain the arithmetic.
+
+Turning a Name into Training Rows
+
+The function receives names and returns two collections: the numerical contexts and their targets. With ana it should produce the four rows we followed on paper.
+
+xs and ys start out as empty lists. In the first we will store inputs; in the second, answers. The outer loop takes one name at a time. The condition rejects an empty string or any character that is not among the four allowed letters. OUTPUTS[:-1] means “all the outputs except the last one,” which leaves out the end.
+
+The window starts as [0,0,0]. Multiplying a list with a single zero by three repeats that element. The inner loop goes through the letters of the name and an end mark. In each round, append stores one row in each list. copy() stores a copy of the window, and the output dictionary converts the answer into its number.
+
+Let us follow ana. The first round stores context [0,0,0] and target 0, which means a. It then updates the window to [0,0,1]. In the second round it stores that window and target 3, which means n. This is exactly our central question. After that, it continues with the last a and with the end.
+
+context[1:] removes the oldest slot. Adding the two lists puts the new card on the right. We do not make that update when the output is the end, because there will be no further prediction within that name.
+
+The check if not xs avoids returning an empty set. The last lines convert the lists into integer CPU tensors. The function returns both together: that is why we can write x, y = prepare(...). With the four names, x has 19 rows of three numbers, and y has 19 answers.
+
+Building the Path That a Prediction Follows
+
+This function creates the network and returns it. Each line adds one operation to the path a context follows. The parameters are initialized here; they have not yet been corrected with the names.
+
+nn.Sequential means that the operations are run one after another. When we later call model(x), PyTorch passes the output of each line on to the next.
+
+Looking up cards. The first line creates Embedding(5, 2): five cards, two numbers per card. With an input [0,0,1], it will look up the start card twice and the card for a once. Those contents will be learned during training.
+
+Laying out the six numbers. Flatten(start=1) keeps the dimension of the examples and flattens the dimensions that come after it. For a single question it turns a table of three pairs into a row of six components. It does not mix the questions with one another.
+
+Combining and transforming. The first Linear layer receives six numbers and produces eight weighted sums, with their biases. Tanh transforms each one into an activation. The last layer receives eight activations and produces five logits, one per possible output. Linear layers include biases by default.
+
+.to("cpu") places the parameters on the CPU. The result of this function is the model with its 111 adjustable numbers. We do not include softmax at the end because, during training, the loss function will receive the logits directly. The conversion into probabilities will appear when we generate a letter.
+
+Repeating the Prediction and the Update
+
+There are two different functions here. evaluate returns a loss value without changing the model. train uses the loss to modify the parameters and returns how the loss evolved.
+
+In evaluate, model(x) computes one row of logits per context. The loss compares each row with its target in y and averages the costs. .item() turns that single-value result into a Python number. no() indicates that we will not need derivatives in this evaluation.
+
+In train we create the optimizer. model.parameters() provides the cards, weights and biases that it can modify. lr=RATE sets the size of the updates. The history first stores the loss of the initial model, associated with step zero.
+
+One round of the loop. First, the previous gradients are discarded with zero. Then the logits and the current loss are computed. backward() computes the derivatives. step() uses them to update the parameters. The next round will predict again with the new values.
+
+range(1, STEPS + 1) goes from step 1 to step 400, both included. Every step uses the 19 training questions together. The condition on the remainder of dividing by 50 picks out steps 50, 100 and the other multiples. At those steps the loss is measured again and stored in the history.
+
+The held-out set does not appear in this function. Nor do we stop training when a generated sample looks nice. We finish at the fixed number of steps. These layers do not behave differently in training and in evaluation; no only avoids preparing derivatives when they are not needed.
+
+Computing the Baseline from Chapter 2
+
+These functions rebuild and evaluate the bigram. They do it with tensors, but the arithmetic is the same as in chapter 2: count continuations and normalize each row.
+
+torch.ones creates a five-by-five table filled with ones. Each one represents the slip added by smoothing. We have not counted any name yet.
+
+zip(x, y) takes each input together with its target. Of the input, it only uses row[-1], its last slot. For our question [0,0,1] with target 3, it increases the cell in row 1 and column 3: after a, n was observed. The two oldest positions play no part, because this is still a bigram.
+
+The sum with dim=1 gives one total per row. keepdim=True keeps each total as a column, so that the five cells of that row are divided by the same number. For example, the row for a adds up to thirteen after smoothing. The division produces its probability distribution.
+
+In the evaluation, x[:, -1] selects the last slot of every question. The second index, y, selects the real output of each one. In this way we get one probability per transition, not a new prediction chosen at random.
+
+log() computes the natural logarithm of each probability. mean() takes the mean, the minus sign gives the cost and item() returns the number. It is the same procedure we already knew. Smoothing avoids zero probabilities in this table.
+
+Writing a Name with the Learned Model
+
+The function receives a trained model and a random generator. It returns the written text and a flag that distinguishes ending normally from reaching the step limit.
+
+We start with three start marks and an empty list of letters. We are not learning, so the loop works inside no(). The limit allows up to twenty decisions with the default value.
+
+[context] adds the brackets of a list of questions: there is a single question with three identifiers. Converted into a tensor, it has shape (1,3). The model returns five logits in one row. softmax(dim=1) turns them into a distribution, and [0] extracts that single row.
+
+torch.multinomial selects an index at random according to those probabilities; the argument 1 asks for a single choice. generator=rng says which random generator to use, and item() extracts the index from the result.
+
+If index 0 comes out, OUTPUTS[0] translates it into the letter a. We add it to the text and look up its input card, which is 1, to shift the window. The new context will be [0,0,1]. This translation between the two lists is necessary: copying the selected index directly would give a wrong context.
+
+If the end appears, we join the letters with join and return True. The end symbol is not added. If the steps run out, we return False. The text can be empty if the first random selection already chooses the end. We do not sample again to hide it.
+
+Running the Complete Experiment
+
+The run function organizes the previous ones. In this first part it prepares the data, trains and gathers the measurements. It continues in the block on the next page.
+
+We limit PyTorch to one CPU thread because the job is very small. We fix the seed before creating the network, so that the initialization can be repeated. The calls to prepare build the training questions and the held-out questions separately.
+
+create() returns the initial network. The call to train receives only x and y: the held-out data, xh and yh, do not go into it. The variable history receives the pairs of step and loss that were saved during learning.
+
+The clock is read before and after training. The difference measures that whole call, including the optimizer and the periodic evaluations. It does not include installing PyTorch, importing it or generating the final names. That is why this time may be shorter than what you notice when you start the whole file.
+
+Then the bigram is fitted with x and y. The dictionary results stores a name and a value for each measurement: uniform, bigrams on both sets and MLP on both sets. The evaluation functions only query the models.
+
+The parameter count adds up numel(), the number of values in each adjustable tensor. It should give 111. The last entry of the dictionary stores the measured seconds. So far we have gathered the measurements; we still have to print them and generate samples.
+
+Reading the Output and Finishing the Run
+
+These lines are still inside run, up to its return. At the end comes the condition that starts the program when we run the file directly.
+
+The first prints show the PyTorch version, the shapes of x and y, and the history. It is useful to check the shapes before reading the loss: there should be 19 questions of three identifiers and 19 targets.
+
+results.items() lets us go through the names of the measurements together with their values. Then we create the sample generator on the CPU with seed 7. This seed controls the random selections and is independent of the one used to create the weights. The generator is prepared outside the loop so that it moves forward from one sample to the next.
+
+In each of the ten rounds, generate returns a text and a flag. repr(text) prints the text in quotes, which makes an empty string visible. The conditional expression chooses the word “end” or “truncated.” It does not print only the samples that look like known names.
+
+The function also returns the model, the history and the measurements, so that they can be inspected in a notebook. The final condition on name calls run() if we start the file as a program. If another program imports it, the functions become available without the experiment starting automatically.
+
+Every line of the file has now been shown. The last two blocks keep their indentation because they belong to the same function. In the notebook they are combined in a single cell, so that Python receives the complete definition before running it.
+
+Exercises
+
+enumerate[leftmargin=*] Write down the five contexts and targets that anna produces. Keep the input and the expected answer separate. Translate the context start, start, a into input identifiers. Translate the target n into its output identifier. Explain the role of each number. Distinguish between the identifier of a letter and its embedding. Say which one stays fixed and which one changes during training. Retrieve the three illustrative cards for start, start, a and flatten them. Point out which two components correspond to the most recent letter. Rebuild the 111 parameters without looking at the total: count the cards, weights and biases of each layer. Follow the first unit of the hand-worked example: weights [2,0,0,0,0,0], bias 0.1 and the illustrative input. Compute its sum and its tanh activation. Follow output n of the hand-worked example: its only nonzero weight is 2, and it receives the previous activation. Compute its logit, its probability when the other four logits are zero, and the cost if n is the target. Explain what F.cross receives. Distinguish computing the loss from sampling the next letter. For u=2w-3 and L=u^2, compute the derivative at w=1$ and one update with rate 0.1. Relate the calculation to backward() and step().
+
+Describe the shapes (19, 3), (19, 3, 2), (19, 5) and (19,). Say how many dimensions each tensor has and what each size means.
+
+Read the table of real results: say where the network improves on the bigram and where it does worse. Explain why the two results do not contradict each other.
+
+Suppose the random selection returns output identifier 0. Write the generated letter and the identifier we add to the context. Also explain what happens if the end comes out or the limit runs out.
+
+Suggested time: about six hours. You can split them into two sessions: first, follow the hand-worked prediction up to the loss; then study the corrections, run the program and solve the exercises. If a shape or a line is unclear, go back to the example of start, start, a before moving on.
+
+Reflection
+
+Why does the network beat the bigram on the training set and do worse on the held-out set? What would change with many more names?
+
+What do we gain by separating the identifier of a letter from the representation the network learns for it?
+
+Which decisions of the experiment change at once when we move from the bigram to the network, and why does that make it hard to attribute the difference to a single cause?
+
+Conclusion
+
+We have replaced the table of scores with a network that looks at the last three letters: each letter becomes an embedding, a layer with tanh combines the six numbers and a final layer produces the logits. The loss and the correction rule at the output are those of chapter 3; what is new is that the correction must reach the weights, the biases and the embeddings through backpropagation. With only four names, the network fits the training data better than the bigram, but it predicts the held-out strings worse: its flexibility needs more data to turn into better predictions.
+
+Andrej Karpathy's Neural Networks: Zero to Hero video series and his makemore project guide the step from bigrams to character networks. The examples and the program in this chapter are original.
+
+The operations have been checked against the PyTorch documentation on Embedding, Linear, CrossEntropyLoss and automatic differentiation. The program uses PyTorch 2.8.0 for CPU.
+
+In the next chapter we will study tokenization: how to split text into units other than letters. The distinction learned here will remain useful: the identifier of a unit is one thing, and the representation that the network learns for it is another.
