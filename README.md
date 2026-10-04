@@ -1,14 +1,13 @@
+<!-- Encabezado en HTML: GitHub Pages no interpreta Markdown dentro de un <div>, y así se ve igual en los dos sitios. -->
 <div align="center">
-
-# Comprender y construir modelos de lenguaje 📘
-### *Cómo funcionan los LLM, paso a paso y desde cero en Python*
-
-por **Hernán Díaz Rodríguez, PhD** — Profesor en la Universidad de Oviedo · Ex-investigador del CERN
-
-[![Stars](https://img.shields.io/github/stars/HernanDiaz/language-models?style=social)](https://github.com/HernanDiaz/language-models)
-[![Licencia: CC BY-NC 4.0](https://img.shields.io/badge/Licencia-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/deed.es)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-blue?logo=linkedin)](https://www.linkedin.com/in/hernandiazrodriguez)
-
+  <h1>Comprender y construir modelos de lenguaje 📘</h1>
+  <h3><em>Cómo funcionan los LLM, paso a paso y desde cero en Python</em></h3>
+  <p>por <strong>Hernán Díaz Rodríguez, PhD</strong> — Profesor en la Universidad de Oviedo · Ex-investigador del CERN</p>
+  <p>
+    <a href="https://github.com/HernanDiaz/language-models"><img src="https://img.shields.io/github/stars/HernanDiaz/language-models?style=social" alt="Stars"></a>
+    <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.es"><img src="https://img.shields.io/badge/Licencia-CC%20BY--NC%204.0-lightgrey.svg" alt="Licencia: CC BY-NC 4.0"></a>
+    <a href="https://www.linkedin.com/in/hernandiazrodriguez"><img src="https://img.shields.io/badge/LinkedIn-Conectar-blue?logo=linkedin" alt="LinkedIn"></a>
+  </p>
 </div>
 
 ---
