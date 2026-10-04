@@ -2,6 +2,7 @@
 <div align="center">
   <h1>Comprender y construir modelos de lenguaje 📘</h1>
   <h3><em>Cómo funcionan los LLM, paso a paso y desde cero en Python</em></h3>
+  <p><img src="portada.png" alt="Portada del libro" width="280"></p>
   <p>por <strong>Hernán Díaz Rodríguez, PhD</strong> — Profesor en la Universidad de Oviedo · Ex-investigador del CERN</p>
   <p>
     <a href="https://github.com/HernanDiaz/language-models"><img src="https://img.shields.io/github/stars/HernanDiaz/language-models?style=social" alt="Stars"></a>
