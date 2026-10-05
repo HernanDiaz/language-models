@@ -59,6 +59,7 @@ El libro y los cuadernos están organizados en **3 partes**:
 
 - Haz clic en **Abrir en Colab** para ejecutar el código de cada capítulo, sin instalar nada.
 - Sigue el libro mientras experimentas con los ejemplos: el cuaderno es el laboratorio y el libro, la explicación.
+- Haz clic en **Vídeo** para ver el resumen del capítulo en YouTube. Todos están en la [lista de reproducción del libro](https://www.youtube.com/playlist?list=PLN_MRnBB6UX0).
 - Los cuadernos 1, 2, 3 y 5 usan solo Python estándar; los demás usan **PyTorch**, que Colab ya trae instalado. Ninguno necesita GPU.
 - Los cuadernos 7, 9 y 11 entrenan modelos durante varios minutos.
 - Si prefieres ejecutarlos en local, los cuadernos 5 a 10 descargan solos los datos de la carpeta `material/` si no los encuentran.
@@ -69,17 +70,17 @@ El libro y los cuadernos están organizados en **3 partes**:
 
 | Cap. | Título | Colab | Vídeo |
 |------|--------|-------|-------|
-| 1 | Cómo aprende un modelo | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/1_Como_aprende_un_modelo.ipynb) | Próximamente |
-| 2 | Modelado de lenguaje | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/2_Modelado_de_lenguaje.ipynb) | Próximamente |
-| 3 | Del recuento a la red | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/3_Del_recuento_a_la_red.ipynb) | Próximamente |
-| 4 | Redes para predecir texto | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/4_Redes_para_predecir_texto.ipynb) | Próximamente |
-| 5 | Tokenización | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/5_Tokenizacion.ipynb) | Próximamente |
-| 6 | Atención y Transformer | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/6_Atencion_y_Transformer.ipynb) | Próximamente |
-| 7 | Entrenamiento y datos | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/7_Entrenamiento_y_datos.ipynb) | Próximamente |
-| 8 | Generación e inferencia | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/8_Generacion_e_inferencia.ipynb) | Próximamente |
-| 9 | Del modelo base al asistente | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/9_Del_modelo_base_al_asistente.ipynb) | Próximamente |
-| 10 | Evaluación y límites | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/10_Evaluacion_y_limites.ipynb) | Próximamente |
-| 11 | Proyecto integrador | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/11_Proyecto_integrador.ipynb) | Próximamente |
+| 1 | Cómo aprende un modelo | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/1_Como_aprende_un_modelo.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/S6dizBP8ATs) |
+| 2 | Modelado de lenguaje | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/2_Modelado_de_lenguaje.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/2sYyE4U84wc) |
+| 3 | Del recuento a la red | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/3_Del_recuento_a_la_red.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/QCzjtWYDgGk) |
+| 4 | Redes para predecir texto | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/4_Redes_para_predecir_texto.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/w1Q1WU4VWmo) |
+| 5 | Tokenización | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/5_Tokenizacion.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/LP9yCFVNc1I) |
+| 6 | Atención y Transformer | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/6_Atencion_y_Transformer.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/fJ7_ulItsdU) |
+| 7 | Entrenamiento y datos | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/7_Entrenamiento_y_datos.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/EsXtvpvvilM) |
+| 8 | Generación e inferencia | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/8_Generacion_e_inferencia.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/OrGEyLAp-58) |
+| 9 | Del modelo base al asistente | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/9_Del_modelo_base_al_asistente.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/zCk7QKeUkuc) |
+| 10 | Evaluación y límites | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/10_Evaluacion_y_limites.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/LtYeIlHt1iA) |
+| 11 | Proyecto integrador | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/11_Proyecto_integrador.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Vídeo-red?logo=youtube)](https://youtu.be/-3lyVk_eVB4) |
 
 ---
 
