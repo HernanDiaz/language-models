@@ -59,6 +59,7 @@ The book and the notebooks are organized in **3 parts**:
 
 - Click **Open in Colab** to run the code of each chapter, with nothing to install.
 - Follow the book while you experiment with the examples: the notebook is the lab and the book is the explanation.
+- Click **Video** to watch the chapter's summary on YouTube. They are all in the [book's playlist](https://www.youtube.com/playlist?list=PLV713YB9zc-0).
 - Notebooks 1, 2, 3 and 5 use only standard Python; the others use **PyTorch**, which Colab already has installed. None needs a GPU.
 - Notebooks 7, 9 and 11 train models for several minutes.
 - If you prefer to run them locally, notebooks 5 to 10 download the data from the `material/` folder by themselves when they do not find it.
@@ -69,17 +70,17 @@ The book and the notebooks are organized in **3 parts**:
 
 | Ch. | Title | Colab | Video |
 |-----|-------|-------|-------|
-| 1 | How a Model Learns | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/1_How_a_model_learns.ipynb) | Coming soon |
-| 2 | Language Modeling | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/2_Language_modeling.ipynb) | Coming soon |
-| 3 | From Counting to a Network | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/3_From_counting_to_a_network.ipynb) | Coming soon |
-| 4 | Networks to Predict Text | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/4_Networks_to_predict_text.ipynb) | Coming soon |
-| 5 | Tokenization | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/5_Tokenization.ipynb) | Coming soon |
-| 6 | Attention and the Transformer | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/6_Attention_and_the_Transformer.ipynb) | Coming soon |
-| 7 | Training and Data | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/7_Training_and_data.ipynb) | Coming soon |
-| 8 | Generation and Inference | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/8_Generation_and_inference.ipynb) | Coming soon |
-| 9 | From Base Model to Assistant | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/9_From_base_model_to_assistant.ipynb) | Coming soon |
-| 10 | Evaluation and Limits | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/10_Evaluation_and_limits.ipynb) | Coming soon |
-| 11 | Capstone Project | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/11_Capstone_project.ipynb) | Coming soon |
+| 1 | How a Model Learns | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/1_How_a_model_learns.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/UG8T1x5UlCQ) |
+| 2 | Language Modeling | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/2_Language_modeling.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/OEP77UrWbr4) |
+| 3 | From Counting to a Network | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/3_From_counting_to_a_network.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/pVxo_dkWsz8) |
+| 4 | Networks to Predict Text | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/4_Networks_to_predict_text.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/Z9soR8tk868) |
+| 5 | Tokenization | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/5_Tokenization.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/Ok-cNo_vsZ4) |
+| 6 | Attention and the Transformer | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/6_Attention_and_the_Transformer.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/R8i-C2m-XKw) |
+| 7 | Training and Data | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/7_Training_and_data.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/5Z0BMzlSAqA) |
+| 8 | Generation and Inference | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/8_Generation_and_inference.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/nEHApegM0j4) |
+| 9 | From Base Model to Assistant | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/9_From_base_model_to_assistant.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/A9vVSFgoMQ8) |
+| 10 | Evaluation and Limits | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/10_Evaluation_and_limits.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/LyxtnogMJ7k) |
+| 11 | Capstone Project | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HernanDiaz/language-models/blob/main/en/11_Capstone_project.ipynb) | [![YouTube](https://img.shields.io/badge/YouTube-Video-red?logo=youtube)](https://youtu.be/USH0xNjO1h0) |
 
 ---
 
